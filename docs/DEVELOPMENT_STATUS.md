@@ -21,10 +21,13 @@ PostgreSQL database foundation and backend database connectivity.
 - [x] PostgreSQL 18.6 installed and verified
 - [x] CHITRAGUPT development database created
 - [x] FastAPI to PostgreSQL connection verified
+- [x] Initial PostgreSQL schema approved
+- [x] SQLAlchemy ORM models implemented
+- [x] ORM schema validated
 
 
 ## Currently Working On
-- Initial database layer and schema design
+- Database table creation and verification
 
 ## Next
 
