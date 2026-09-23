@@ -1,0 +1,21 @@
+timestamp,event_type,source,user,device,ip_address,application,process,file_path,description
+2026-09-21T08:15:00Z,login,workstation,ava.quill,ORION-LT-07,10.44.18.27,Windows Sign-in,winlogon.exe,,Synthetic routine workstation login
+2026-09-21T08:17:12Z,application_start,workstation,ava.quill,ORION-LT-07,10.44.18.27,MailDesk,maildesk.exe,,Synthetic routine mail client start
+2026-09-21T08:22:41Z,file_access,workstation,ava.quill,ORION-LT-07,10.44.18.27,File Explorer,explorer.exe,C:\Users\ava.quill\Documents\Project Atlas\overview.txt,Synthetic normal project document access
+2026-09-21T09:03:18Z,file_access,workstation,ava.quill,ORION-LT-07,10.44.18.27,File Explorer,explorer.exe,D:\Casework\Atlas\confidential\client_roster.xlsx,Synthetic confidential file access
+2026-09-21T09:04:02Z,file_access,workstation,ava.quill,ORION-LT-07,10.44.18.27,SpreadsheetPro,spreadsheetpro.exe,D:\Casework\Atlas\confidential\budget_forecast.xlsx,Synthetic confidential file access
+2026-09-21T09:05:27Z,device_connected,workstation,ava.quill,ORION-LT-07,10.44.18.27,Device Manager,devmgmt.exe,,Synthetic Android USB device connected
+2026-09-21T09:06:11Z,file_copy,workstation,ava.quill,ORION-LT-07,10.44.18.27,File Explorer,explorer.exe,D:\Casework\Atlas\confidential\client_roster.xlsx -> E:\MOBILE-ORION\DCIM\client_roster.xlsx,Synthetic confidential file copied to mobile device
+2026-09-21T09:07:44Z,process_start,workstation,ava.quill,ORION-LT-07,10.44.18.27,ArchiveTool,archivetool.exe,D:\Casework\Atlas\confidential\atlas_bundle.zip,Synthetic confidential files compressed for transfer
+2026-09-21T09:08:19Z,file_copy,workstation,ava.quill,ORION-LT-07,10.44.18.27,File Explorer,explorer.exe,D:\Casework\Atlas\confidential\atlas_bundle.zip -> E:\MOBILE-ORION\Download\atlas_bundle.zip,Synthetic archive copied to mobile device
+2026-09-21T09:09:03Z,device_disconnected,workstation,ava.quill,ORION-LT-07,10.44.18.27,Device Manager,devmgmt.exe,,Synthetic Android USB device disconnected
+2026-09-21T09:30:00Z,logout,workstation,ava.quill,ORION-LT-07,10.44.18.27,Windows Sign-in,winlogon.exe,,Synthetic routine workstation logout
+2026-09-21T13:12:06Z,download,workstation,ben.cipher,ORION-LT-07,10.44.18.27,WebHarbor,webharbor.exe,C:\Users\ben.cipher\Downloads\invoice_viewer_update.exe,Synthetic suspicious executable download
+2026-09-21T13:13:22Z,process_start,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Downloads\invoice_viewer_update.exe,Synthetic downloaded process executed
+2026-09-21T13:13:48Z,file_access,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Documents\Reports\q3_summary.docx,Synthetic document accessed by suspicious process
+2026-09-21T13:14:02Z,file_modified,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Documents\Reports\q3_summary.docx,Synthetic document modification event
+2026-09-21T13:14:19Z,file_modified,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Pictures\field_notes.pdf,Synthetic file modification event
+2026-09-21T13:14:37Z,file_modified,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Desktop\handoff.txt,Synthetic file modification event
+2026-09-21T13:15:04Z,encryption_activity,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Documents\Reports\q3_summary.docx.locked,Synthetic encryption-like file activity
+2026-09-21T13:15:31Z,encryption_activity,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Pictures\field_notes.pdf.locked,Synthetic encryption-like file activity
+2026-09-21T13:16:10Z,file_modified,workstation,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Desktop\RECOVER_FILES.txt,Synthetic ransom note created
