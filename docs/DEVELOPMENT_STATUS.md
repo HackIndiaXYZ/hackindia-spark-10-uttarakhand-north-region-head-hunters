@@ -18,9 +18,13 @@ PostgreSQL database foundation and backend database connectivity.
 - [x] FastAPI backend initialized
 - [x] FastAPI API tested locally
 - [x] Backend dependencies installed and verified
+- [x] PostgreSQL 18.6 installed and verified
+- [x] CHITRAGUPT development database created
+- [x] FastAPI to PostgreSQL connection verified
+
 
 ## Currently Working On
-- FastAPI to PostgreSQL database connectivity
+- Initial database layer and schema design
 
 ## Next
 
