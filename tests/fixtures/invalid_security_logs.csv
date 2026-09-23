@@ -1,0 +1,3 @@
+timestamp,event_type,source,user,device,ip_address,application,file_path,description
+2026-09-21T08:15:00Z,login,workstation,ava.quill,ORION-LT-07,10.44.18.27,Windows Sign-in,,Synthetic routine workstation login
+2026-09-21T08:17:12Z,application_start,workstation,ava.quill,ORION-LT-07,10.44.18.27,MailDesk,,Synthetic routine mail client start
