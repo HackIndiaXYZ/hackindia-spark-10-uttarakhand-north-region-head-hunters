@@ -114,3 +114,55 @@ Major development entries should reference the Git commit associated with the ch
 Rule 6 — Update after milestones
 
 The development log should be updated after meaningful milestones rather than continuously during every coding action.
+
+---
+
+## 23 September 2026 — Backend Foundation and Dependencies
+
+### Step
+
+Backend environment and dependency setup.
+
+### Objective
+
+Establish a controlled Python development environment and install only the dependencies required for the current backend and data-processing stages.
+
+### Actions Performed
+
+- Created Python virtual environment using Python 3.14.0.
+- Verified the virtual environment.
+- Upgraded pip to 26.2.1.
+- Created the initial FastAPI backend structure.
+- Installed FastAPI and Uvicorn.
+- Created the initial FastAPI application.
+- Tested the API locally.
+- Verified the FastAPI Swagger documentation.
+- Defined the initial project dependency list.
+- Installed the dependencies from `requirements.txt`.
+- Verified that all listed Python dependencies can be imported successfully.
+
+### Result
+
+Backend foundation and Python dependency environment successfully established.
+
+### Current Dependencies
+
+- FastAPI
+- Uvicorn
+- Pandas
+- SQLAlchemy
+- Psycopg
+- Scikit-learn
+- python-dotenv
+- ReportLab
+- Pytest
+- HTTPX
+
+### Git
+
+A Git checkpoint will be created after this development-log update.
+
+### Next Step
+
+PostgreSQL development database setup and connectivity verification.
+
