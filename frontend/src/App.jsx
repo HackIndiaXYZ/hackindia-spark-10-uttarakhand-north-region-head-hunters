@@ -124,31 +124,35 @@ function App() {
           </table>
         </div>
       </section>
-      <h2>Investigation Findings</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Finding Type</th>
-            <th>Title</th>
-            <th>Description</th>
-            <th>Confidence</th>
-            <th>Status</th>
-            <th>Created At</th>
-          </tr>
-        </thead>
-        <tbody>
-          {findings.map((finding) => (
-            <tr key={finding.id}>
-              <td>{finding.finding_type}</td>
-              <td>{finding.title}</td>
-              <td>{finding.description}</td>
-              <td>{finding.confidence}</td>
-              <td>{finding.status}</td>
-              <td>{finding.created_at}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <section>
+        <h2>Investigation Findings</h2>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Finding Type</th>
+                <th>Title</th>
+                <th>Description</th>
+                <th>Confidence</th>
+                <th>Status</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {findings.map((finding) => (
+                <tr key={finding.id}>
+                  <td>{finding.finding_type}</td>
+                  <td>{finding.title}</td>
+                  <td>{finding.description}</td>
+                  <td>{finding.confidence}</td>
+                  <td>{finding.status}</td>
+                  <td>{finding.created_at}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <h2>Anomaly Analysis</h2>
       <table>
         <thead>
