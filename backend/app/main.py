@@ -1,5 +1,8 @@
 from fastapi import FastAPI
+from sqlalchemy import select
 
+from backend.app.database import SessionLocal
+from backend.app.models import Finding
 from backend.app.queries import get_events_by_case
 
 app = FastAPI(title="CHITRAGUPT API")
@@ -32,3 +35,31 @@ def case_events(case_id: int):
         }
         for event in events
     ]
+
+
+@app.get("/cases/{case_id}/findings")
+def case_findings(case_id: int):
+    """Return persisted findings for a case ordered by database ID."""
+    session = SessionLocal()
+    try:
+        statement = (
+            select(Finding)
+            .where(Finding.case_id == case_id)
+            .order_by(Finding.id.asc())
+        )
+        findings = session.scalars(statement).all()
+        return [
+            {
+                "id": finding.id,
+                "case_id": finding.case_id,
+                "finding_type": finding.finding_type,
+                "title": finding.title,
+                "description": finding.description,
+                "confidence": finding.confidence,
+                "status": finding.status,
+                "created_at": finding.created_at,
+            }
+            for finding in findings
+        ]
+    finally:
+        session.close()
