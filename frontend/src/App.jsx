@@ -274,7 +274,7 @@ function App() {
                 <th>Event ID</th>
                 <th>Model Name</th>
                 <th>Anomaly Score</th>
-                <th>Is Anomaly</th>
+                <th>Status</th>
                 <th>Created At</th>
               </tr>
             </thead>
@@ -284,7 +284,7 @@ function App() {
                   <td>{anomaly.event_id}</td>
                   <td>{anomaly.model_name}</td>
                   <td>{anomaly.anomaly_score}</td>
-                  <td>{String(anomaly.is_anomaly)}</td>
+                  <td>{anomaly.is_anomaly ? 'Anomalous' : 'Normal'}</td>
                   <td>{anomaly.created_at}</td>
                 </tr>
               ))}
