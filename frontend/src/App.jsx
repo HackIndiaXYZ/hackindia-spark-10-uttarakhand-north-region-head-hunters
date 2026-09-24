@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 function App() {
   const [caseData, setCaseData] = useState(null)
   const [events, setEvents] = useState([])
+  const [eventSearch, setEventSearch] = useState('')
   const [findings, setFindings] = useState([])
   const [anomalies, setAnomalies] = useState([])
   const [evidence, setEvidence] = useState([])
@@ -35,6 +36,22 @@ function App() {
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false))
   }, [])
+
+  const normalizedEventSearch = eventSearch.trim().toLowerCase()
+  const filteredEvents = events.filter((event) =>
+    [
+      event.event_type,
+      event.user,
+      event.device,
+      event.ip_address,
+      event.application,
+      event.process,
+      event.file_path,
+      event.description,
+    ].some((value) =>
+      String(value ?? '').toLowerCase().includes(normalizedEventSearch),
+    ),
+  )
 
   if (loading) {
     return <p>Loading...</p>
@@ -91,6 +108,12 @@ function App() {
       </section>
       <section>
         <h2>Event Timeline</h2>
+        <input
+          type="text"
+          placeholder="Search events..."
+          value={eventSearch}
+          onChange={(event) => setEventSearch(event.target.value)}
+        />
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
@@ -107,7 +130,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {events.map((event) => (
+              {filteredEvents.map((event) => (
                 <tr key={event.id}>
                   <td>{event.timestamp}</td>
                   <td>{event.event_type}</td>
