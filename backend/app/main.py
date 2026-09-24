@@ -67,6 +67,7 @@ def case_findings(case_id: int):
                 "finding_type": finding.finding_type,
                 "title": finding.title,
                 "description": finding.description,
+                "supporting_event_ids": finding.supporting_event_ids,
                 "confidence": finding.confidence,
                 "status": finding.status,
                 "created_at": finding.created_at,

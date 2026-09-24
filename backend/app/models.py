@@ -144,6 +144,10 @@ class Finding(Base):
     finding_type: Mapped[str] = mapped_column(String(100), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    supporting_event_ids: Mapped[list[int] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
     confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

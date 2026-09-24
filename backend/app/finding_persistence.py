@@ -17,6 +17,7 @@ def persist_findings(case_id: int, findings: list[dict]) -> list[Finding]:
             finding_type=finding["finding_type"],
             title=finding["title"],
             description=finding["description"],
+            supporting_event_ids=finding.get("supporting_event_ids"),
             confidence=finding["confidence"],
             status="open",
             created_at=datetime.now(timezone.utc),
