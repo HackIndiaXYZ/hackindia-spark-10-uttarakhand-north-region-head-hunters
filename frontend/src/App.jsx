@@ -8,6 +8,7 @@ function App() {
   const [findings, setFindings] = useState([])
   const [findingSearch, setFindingSearch] = useState('')
   const [selectedFindingType, setSelectedFindingType] = useState('all')
+  const [selectedSupportingEventId, setSelectedSupportingEventId] = useState(null)
   const [anomalies, setAnomalies] = useState([])
   const [selectedAnomalyModel, setSelectedAnomalyModel] = useState('all')
   const [selectedAnomalyStatus, setSelectedAnomalyStatus] = useState('all')
@@ -245,7 +246,20 @@ function App() {
                   <td>{finding.created_at}</td>
                   <td>
                     {finding.supporting_event_ids?.length
-                      ? finding.supporting_event_ids.join(', ')
+                      ? finding.supporting_event_ids.map((eventId, index) => (
+                          <span key={eventId}>
+                            <button
+                              type="button"
+                              value={eventId}
+                              onClick={() => setSelectedSupportingEventId(eventId)}
+                            >
+                              {eventId}
+                            </button>
+                            {index < finding.supporting_event_ids.length - 1
+                              ? ', '
+                              : ''}
+                          </span>
+                        ))
                       : 'None'}
                   </td>
                 </tr>
