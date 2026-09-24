@@ -7,6 +7,7 @@ function App() {
   const [selectedEventType, setSelectedEventType] = useState('all')
   const [findings, setFindings] = useState([])
   const [findingSearch, setFindingSearch] = useState('')
+  const [selectedFindingType, setSelectedFindingType] = useState('all')
   const [anomalies, setAnomalies] = useState([])
   const [selectedAnomalyModel, setSelectedAnomalyModel] = useState('all')
   const [selectedAnomalyStatus, setSelectedAnomalyStatus] = useState('all')
@@ -63,17 +64,25 @@ function App() {
 
     return matchesText && matchesEventType
   })
+  const findingTypes = [
+    ...new Set(findings.map((finding) => finding.finding_type).filter(Boolean)),
+  ].sort()
   const normalizedFindingSearch = findingSearch.trim().toLowerCase()
-  const filteredFindings = findings.filter((finding) =>
-    [
+  const filteredFindings = findings.filter((finding) => {
+    const matchesText = [
       finding.finding_type,
       finding.title,
       finding.description,
       finding.status,
     ].some((value) =>
       String(value ?? '').toLowerCase().includes(normalizedFindingSearch),
-    ),
-  )
+    )
+    const matchesFindingType =
+      selectedFindingType === 'all' ||
+      finding.finding_type === selectedFindingType
+
+    return matchesText && matchesFindingType
+  })
   const filteredAnomalies = anomalies.filter((anomaly) => {
     const matchesModel =
       selectedAnomalyModel === 'all' ||
@@ -199,6 +208,17 @@ function App() {
           value={findingSearch}
           onChange={(event) => setFindingSearch(event.target.value)}
         />
+        <select
+          value={selectedFindingType}
+          onChange={(event) => setSelectedFindingType(event.target.value)}
+        >
+          <option value="all">All Finding Types</option>
+          {findingTypes.map((findingType) => (
+            <option key={findingType} value={findingType}>
+              {findingType}
+            </option>
+          ))}
+        </select>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
