@@ -186,7 +186,14 @@ function App() {
             </thead>
             <tbody>
               {filteredEvents.map((event) => (
-                <tr key={event.id}>
+                <tr
+                  key={event.id}
+                  style={
+                    event.id === selectedSupportingEventId
+                      ? { backgroundColor: '#fff3cd' }
+                      : undefined
+                  }
+                >
                   <td>{event.timestamp}</td>
                   <td>{event.event_type}</td>
                   <td>{event.user}</td>
