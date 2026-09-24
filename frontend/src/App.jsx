@@ -43,10 +43,19 @@ function App() {
 
   return (
     <main>
-      <h1>{caseData.case_number}</h1>
-      <p>{caseData.title}</p>
-      <p>{caseData.description}</p>
-      <p>{caseData.status}</p>
+      <section>
+        <h1>Case Overview</h1>
+        <p>Case Number: {caseData.case_number}</p>
+        <p>Title: {caseData.title}</p>
+        <p>Description: {caseData.description}</p>
+        <p>Status: {caseData.status}</p>
+      </section>
+      <section>
+        <h2>Investigation Summary</h2>
+        <p>Total Events: {events.length}</p>
+        <p>Total Findings: {findings.length}</p>
+        <p>Total Anomalies: {anomalies.length}</p>
+      </section>
       <table>
         <thead>
           <tr>
