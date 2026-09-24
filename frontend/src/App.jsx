@@ -5,6 +5,7 @@ function App() {
   const [events, setEvents] = useState([])
   const [findings, setFindings] = useState([])
   const [anomalies, setAnomalies] = useState([])
+  const [evidence, setEvidence] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -22,12 +23,14 @@ function App() {
       fetchJson('http://127.0.0.1:8000/cases/1/events'),
       fetchJson('http://127.0.0.1:8000/cases/1/findings'),
       fetchJson('http://127.0.0.1:8000/cases/1/anomalies'),
+      fetchJson('http://127.0.0.1:8000/cases/1/evidence'),
     ])
-      .then(([data, eventData, findingData, anomalyData]) => {
+      .then(([data, eventData, findingData, anomalyData, evidenceData]) => {
         setCaseData(data)
         setEvents(eventData)
         setFindings(findingData)
         setAnomalies(anomalyData)
+        setEvidence(evidenceData)
       })
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false))
@@ -55,6 +58,36 @@ function App() {
         <p>Total Events: {events.length}</p>
         <p>Total Findings: {findings.length}</p>
         <p>Total Anomalies: {anomalies.length}</p>
+        <p>Total Evidence: {evidence.length}</p>
+      </section>
+      <section>
+        <h2>Evidence</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Filename</th>
+              <th>Source</th>
+              <th>Evidence Type</th>
+              <th>File Size</th>
+              <th>SHA-256</th>
+              <th>Ingested At</th>
+              <th>Processing Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {evidence.map((item) => (
+              <tr key={item.id}>
+                <td>{item.filename}</td>
+                <td>{item.source}</td>
+                <td>{item.evidence_type}</td>
+                <td>{item.file_size}</td>
+                <td>{item.sha256}</td>
+                <td>{item.ingested_at}</td>
+                <td>{item.processing_status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
       <table>
         <thead>
