@@ -153,29 +153,33 @@ function App() {
           </table>
         </div>
       </section>
-      <h2>Anomaly Analysis</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Event ID</th>
-            <th>Model Name</th>
-            <th>Anomaly Score</th>
-            <th>Is Anomaly</th>
-            <th>Created At</th>
-          </tr>
-        </thead>
-        <tbody>
-          {anomalies.map((anomaly) => (
-            <tr key={anomaly.id}>
-              <td>{anomaly.event_id}</td>
-              <td>{anomaly.model_name}</td>
-              <td>{anomaly.anomaly_score}</td>
-              <td>{String(anomaly.is_anomaly)}</td>
-              <td>{anomaly.created_at}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <section>
+        <h2>Anomaly Analysis</h2>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Event ID</th>
+                <th>Model Name</th>
+                <th>Anomaly Score</th>
+                <th>Is Anomaly</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {anomalies.map((anomaly) => (
+                <tr key={anomaly.id}>
+                  <td>{anomaly.event_id}</td>
+                  <td>{anomaly.model_name}</td>
+                  <td>{anomaly.anomaly_score}</td>
+                  <td>{String(anomaly.is_anomaly)}</td>
+                  <td>{anomaly.created_at}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </main>
   )
 }
