@@ -150,6 +150,7 @@ function App() {
       </section>
       <section>
         <h2>Event Timeline</h2>
+        <p>Showing {filteredEvents.length} of {events.length} events</p>
         <input
           type="text"
           placeholder="Search events..."
@@ -202,6 +203,7 @@ function App() {
       </section>
       <section>
         <h2>Investigation Findings</h2>
+        <p>Showing {filteredFindings.length} of {findings.length} findings</p>
         <input
           type="text"
           placeholder="Search findings..."
@@ -248,6 +250,7 @@ function App() {
       </section>
       <section>
         <h2>Anomaly Analysis</h2>
+        <p>Showing {filteredAnomalies.length} of {anomalies.length} results</p>
         <select
           value={selectedAnomalyModel}
           onChange={(event) => setSelectedAnomalyModel(event.target.value)}
