@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 function App() {
   const [caseData, setCaseData] = useState(null)
   const [events, setEvents] = useState([])
+  const [findings, setFindings] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -18,10 +19,12 @@ function App() {
     Promise.all([
       fetchJson('http://127.0.0.1:8000/cases/1'),
       fetchJson('http://127.0.0.1:8000/cases/1/events'),
+      fetchJson('http://127.0.0.1:8000/cases/1/findings'),
     ])
-      .then(([data, eventData]) => {
+      .then(([data, eventData, findingData]) => {
         setCaseData(data)
         setEvents(eventData)
+        setFindings(findingData)
       })
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false))
@@ -67,6 +70,30 @@ function App() {
               <td>{event.process}</td>
               <td>{event.file_path}</td>
               <td>{event.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr>
+            <th>Finding Type</th>
+            <th>Title</th>
+            <th>Description</th>
+            <th>Confidence</th>
+            <th>Status</th>
+            <th>Created At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {findings.map((finding) => (
+            <tr key={finding.id}>
+              <td>{finding.finding_type}</td>
+              <td>{finding.title}</td>
+              <td>{finding.description}</td>
+              <td>{finding.confidence}</td>
+              <td>{finding.status}</td>
+              <td>{finding.created_at}</td>
             </tr>
           ))}
         </tbody>
