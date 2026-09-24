@@ -7,6 +7,7 @@ function App() {
   const [findings, setFindings] = useState([])
   const [findingSearch, setFindingSearch] = useState('')
   const [anomalies, setAnomalies] = useState([])
+  const [selectedAnomalyModel, setSelectedAnomalyModel] = useState('all')
   const [evidence, setEvidence] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -64,6 +65,12 @@ function App() {
       String(value ?? '').toLowerCase().includes(normalizedFindingSearch),
     ),
   )
+  const filteredAnomalies =
+    selectedAnomalyModel === 'all'
+      ? anomalies
+      : anomalies.filter(
+          (anomaly) => anomaly.model_name === selectedAnomalyModel,
+        )
 
   if (loading) {
     return <p>Loading...</p>
@@ -196,6 +203,14 @@ function App() {
       </section>
       <section>
         <h2>Anomaly Analysis</h2>
+        <select
+          value={selectedAnomalyModel}
+          onChange={(event) => setSelectedAnomalyModel(event.target.value)}
+        >
+          <option value="all">All Models</option>
+          <option value="isolation_forest">Isolation Forest</option>
+          <option value="lof">LOF</option>
+        </select>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
@@ -208,7 +223,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {anomalies.map((anomaly) => (
+              {filteredAnomalies.map((anomaly) => (
                 <tr key={anomaly.id}>
                   <td>{anomaly.event_id}</td>
                   <td>{anomaly.model_name}</td>
