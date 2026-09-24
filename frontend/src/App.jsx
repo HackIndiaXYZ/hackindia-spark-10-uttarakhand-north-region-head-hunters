@@ -4,6 +4,7 @@ function App() {
   const [caseData, setCaseData] = useState(null)
   const [events, setEvents] = useState([])
   const [findings, setFindings] = useState([])
+  const [anomalies, setAnomalies] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -20,11 +21,13 @@ function App() {
       fetchJson('http://127.0.0.1:8000/cases/1'),
       fetchJson('http://127.0.0.1:8000/cases/1/events'),
       fetchJson('http://127.0.0.1:8000/cases/1/findings'),
+      fetchJson('http://127.0.0.1:8000/cases/1/anomalies'),
     ])
-      .then(([data, eventData, findingData]) => {
+      .then(([data, eventData, findingData, anomalyData]) => {
         setCaseData(data)
         setEvents(eventData)
         setFindings(findingData)
+        setAnomalies(anomalyData)
       })
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false))
@@ -94,6 +97,28 @@ function App() {
               <td>{finding.confidence}</td>
               <td>{finding.status}</td>
               <td>{finding.created_at}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <table>
+        <thead>
+          <tr>
+            <th>Event ID</th>
+            <th>Model Name</th>
+            <th>Anomaly Score</th>
+            <th>Is Anomaly</th>
+            <th>Created At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {anomalies.map((anomaly) => (
+            <tr key={anomaly.id}>
+              <td>{anomaly.event_id}</td>
+              <td>{anomaly.model_name}</td>
+              <td>{anomaly.anomaly_score}</td>
+              <td>{String(anomaly.is_anomaly)}</td>
+              <td>{anomaly.created_at}</td>
             </tr>
           ))}
         </tbody>
