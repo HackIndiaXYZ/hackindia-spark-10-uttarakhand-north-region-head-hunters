@@ -1,9 +1,15 @@
-from fastapi import FastAPI, HTTPException
+import os
+import tempfile
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
 from backend.app.database import SessionLocal
+from backend.app.ingestion import ingest_csv
 from backend.app.models import Anomaly, Case, Evidence, Finding
+from backend.app.persistence import persist_ingestion
+from backend.app.pipeline import run_investigation_pipeline
 from backend.app.queries import get_events_by_case
 
 app = FastAPI(title="CHITRAGUPT API")
@@ -15,7 +21,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
     ],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -158,3 +164,66 @@ def case_details(case_id: int):
         }
     finally:
         session.close()
+
+
+@app.post("/cases/{case_id}/ingest")
+async def ingest_case(case_id: int, file: UploadFile = File(...)):
+    """Ingest an uploaded CSV and run the investigation pipeline for a case."""
+    case_session = SessionLocal()
+    try:
+        if case_session.get(Case, case_id) is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Case {case_id} not found.",
+            )
+    finally:
+        case_session.close()
+
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as temporary_file:
+            temporary_path = temporary_file.name
+            while chunk := await file.read(1024 * 1024):
+                temporary_file.write(chunk)
+
+        try:
+            evidence, events = ingest_csv(temporary_path, case_id)
+        except (OSError, ValueError) as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid or unreadable CSV: {exc}",
+            ) from exc
+
+        try:
+            persisted_evidence = persist_ingestion(evidence, events)
+            pipeline_result = run_investigation_pipeline(case_id)
+        except Exception as exc:
+            raise HTTPException(
+                status_code=500,
+                detail="CSV processing failed.",
+            ) from exc
+
+        return {
+            "case_id": case_id,
+            "evidence_id": persisted_evidence.id,
+            "filename": file.filename,
+            "event_count": pipeline_result["event_count"],
+            "finding_count": len(pipeline_result["findings"]),
+            "anomaly_count": len(pipeline_result["isolation_forest_results"])
+            + len(pipeline_result["lof_results"]),
+            "finding_ids": pipeline_result["persisted_finding_ids"],
+        }
+    except HTTPException:
+        raise
+    except OSError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Unable to save the uploaded file temporarily.",
+        ) from exc
+    finally:
+        await file.close()
+        if temporary_path is not None:
+            try:
+                os.unlink(temporary_path)
+            except FileNotFoundError:
+                pass
