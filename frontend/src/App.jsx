@@ -89,6 +89,7 @@ function App() {
           </tbody>
         </table>
       </section>
+      <h2>Event Timeline</h2>
       <table>
         <thead>
           <tr>
@@ -119,6 +120,7 @@ function App() {
           ))}
         </tbody>
       </table>
+      <h2>Investigation Findings</h2>
       <table>
         <thead>
           <tr>
@@ -143,6 +145,7 @@ function App() {
           ))}
         </tbody>
       </table>
+      <h2>Anomaly Analysis</h2>
       <table>
         <thead>
           <tr>
