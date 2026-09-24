@@ -28,6 +28,7 @@ def evaluate_file_transfer_rule(event: Event) -> dict:
     event_type = event.event_type
     if event_type in _EXPLICIT_EVENT_TYPES:
         return {
+            "event_id": event.id,
             "rule_id": _RULE_ID,
             "matched": True,
             "reason": f"Matched event_type value '{event_type}'.",
@@ -39,12 +40,14 @@ def evaluate_file_transfer_rule(event: Event) -> dict:
         for keyword in _DESCRIPTION_KEYWORDS:
             if keyword in description_casefolded:
                 return {
+                    "event_id": event.id,
                     "rule_id": _RULE_ID,
                     "matched": True,
                     "reason": f"Matched description keyword '{keyword}'.",
                 }
 
     return {
+        "event_id": event.id,
         "rule_id": _RULE_ID,
         "matched": False,
         "reason": "No explicit file-transfer or removable-media indicator found.",
