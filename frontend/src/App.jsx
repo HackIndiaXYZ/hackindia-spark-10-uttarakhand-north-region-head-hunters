@@ -4,6 +4,7 @@ function App() {
   const [caseData, setCaseData] = useState(null)
   const [events, setEvents] = useState([])
   const [eventSearch, setEventSearch] = useState('')
+  const [selectedEventType, setSelectedEventType] = useState('all')
   const [findings, setFindings] = useState([])
   const [findingSearch, setFindingSearch] = useState('')
   const [anomalies, setAnomalies] = useState([])
@@ -40,9 +41,12 @@ function App() {
       .finally(() => setLoading(false))
   }, [])
 
+  const eventTypes = [
+    ...new Set(events.map((event) => event.event_type).filter(Boolean)),
+  ].sort()
   const normalizedEventSearch = eventSearch.trim().toLowerCase()
-  const filteredEvents = events.filter((event) =>
-    [
+  const filteredEvents = events.filter((event) => {
+    const matchesText = [
       event.event_type,
       event.user,
       event.device,
@@ -53,8 +57,12 @@ function App() {
       event.description,
     ].some((value) =>
       String(value ?? '').toLowerCase().includes(normalizedEventSearch),
-    ),
-  )
+    )
+    const matchesEventType =
+      selectedEventType === 'all' || event.event_type === selectedEventType
+
+    return matchesText && matchesEventType
+  })
   const normalizedFindingSearch = findingSearch.trim().toLowerCase()
   const filteredFindings = findings.filter((finding) =>
     [
@@ -139,6 +147,17 @@ function App() {
           value={eventSearch}
           onChange={(event) => setEventSearch(event.target.value)}
         />
+        <select
+          value={selectedEventType}
+          onChange={(event) => setSelectedEventType(event.target.value)}
+        >
+          <option value="all">All Event Types</option>
+          {eventTypes.map((eventType) => (
+            <option key={eventType} value={eventType}>
+              {eventType}
+            </option>
+          ))}
+        </select>
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
