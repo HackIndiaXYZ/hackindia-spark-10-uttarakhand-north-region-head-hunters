@@ -1,8 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from sqlalchemy import select
 
 from backend.app.database import SessionLocal
-from backend.app.models import Anomaly, Evidence, Finding
+from backend.app.models import Anomaly, Case, Evidence, Finding
 from backend.app.queries import get_events_by_case
 
 app = FastAPI(title="CHITRAGUPT API")
@@ -117,5 +117,31 @@ def case_evidence(case_id: int):
             }
             for evidence in evidence_items
         ]
+    finally:
+        session.close()
+
+
+@app.get("/cases/{case_id}")
+def case_details(case_id: int):
+    """Return persisted metadata for a case."""
+    session = SessionLocal()
+    try:
+        statement = select(Case).where(Case.id == case_id)
+        case = session.scalar(statement)
+        if case is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Case {case_id} not found.",
+            )
+
+        return {
+            "id": case.id,
+            "case_number": case.case_number,
+            "title": case.title,
+            "description": case.description,
+            "status": case.status,
+            "created_at": case.created_at,
+            "updated_at": case.updated_at,
+        }
     finally:
         session.close()
