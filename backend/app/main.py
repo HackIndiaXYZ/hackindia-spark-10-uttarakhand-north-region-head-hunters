@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 
 from backend.app.database import SessionLocal
@@ -6,6 +7,17 @@ from backend.app.models import Anomaly, Case, Evidence, Finding
 from backend.app.queries import get_events_by_case
 
 app = FastAPI(title="CHITRAGUPT API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
+    allow_credentials=False,
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
