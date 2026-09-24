@@ -5,6 +5,7 @@ function App() {
   const [events, setEvents] = useState([])
   const [eventSearch, setEventSearch] = useState('')
   const [findings, setFindings] = useState([])
+  const [findingSearch, setFindingSearch] = useState('')
   const [anomalies, setAnomalies] = useState([])
   const [evidence, setEvidence] = useState([])
   const [loading, setLoading] = useState(true)
@@ -50,6 +51,17 @@ function App() {
       event.description,
     ].some((value) =>
       String(value ?? '').toLowerCase().includes(normalizedEventSearch),
+    ),
+  )
+  const normalizedFindingSearch = findingSearch.trim().toLowerCase()
+  const filteredFindings = findings.filter((finding) =>
+    [
+      finding.finding_type,
+      finding.title,
+      finding.description,
+      finding.status,
+    ].some((value) =>
+      String(value ?? '').toLowerCase().includes(normalizedFindingSearch),
     ),
   )
 
@@ -149,6 +161,12 @@ function App() {
       </section>
       <section>
         <h2>Investigation Findings</h2>
+        <input
+          type="text"
+          placeholder="Search findings..."
+          value={findingSearch}
+          onChange={(event) => setFindingSearch(event.target.value)}
+        />
         <div style={{ overflowX: 'auto' }}>
           <table>
             <thead>
@@ -162,7 +180,7 @@ function App() {
               </tr>
             </thead>
             <tbody>
-              {findings.map((finding) => (
+              {filteredFindings.map((finding) => (
                 <tr key={finding.id}>
                   <td>{finding.finding_type}</td>
                   <td>{finding.title}</td>
