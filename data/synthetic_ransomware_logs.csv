@@ -1,0 +1,6 @@
+timestamp,event_type,source,user,device,ip_address,application,process,file_path,description
+2026-09-22T10:00:00Z,suspicious_download,endpoint,ben.cipher,ORION-LT-07,10.44.18.27,WebHarbor,webharbor.exe,C:\Users\ben.cipher\Downloads\invoice_viewer_update.exe,Suspicious executable download from an external source
+2026-09-22T10:01:12Z,process_execution,endpoint,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Downloads\invoice_viewer_update.exe,Downloaded process execution observed
+2026-09-22T10:02:05Z,rapid_file_activity,endpoint,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Documents\Reports\q3_summary.docx,Rapid file activity across user documents
+2026-09-22T10:03:18Z,file_encryption,endpoint,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Documents\Reports\q3_summary.docx.locked,File encryption and modification activity detected
+2026-09-22T10:04:02Z,ransom_note_created,endpoint,ben.cipher,ORION-LT-07,10.44.18.27,Invoice Viewer,invoice_viewer_update.exe,C:\Users\ben.cipher\Desktop\RECOVER_FILES.txt,Ransom note created after encryption activity
