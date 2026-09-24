@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from sqlalchemy import select
 
 from backend.app.database import SessionLocal
-from backend.app.models import Finding
+from backend.app.models import Anomaly, Finding
 from backend.app.queries import get_events_by_case
 
 app = FastAPI(title="CHITRAGUPT API")
@@ -60,6 +60,33 @@ def case_findings(case_id: int):
                 "created_at": finding.created_at,
             }
             for finding in findings
+        ]
+    finally:
+        session.close()
+
+
+@app.get("/cases/{case_id}/anomalies")
+def case_anomalies(case_id: int):
+    """Return persisted anomalies for a case ordered by database ID."""
+    session = SessionLocal()
+    try:
+        statement = (
+            select(Anomaly)
+            .where(Anomaly.case_id == case_id)
+            .order_by(Anomaly.id.asc())
+        )
+        anomalies = session.scalars(statement).all()
+        return [
+            {
+                "id": anomaly.id,
+                "case_id": anomaly.case_id,
+                "event_id": anomaly.event_id,
+                "model_name": anomaly.model_name,
+                "anomaly_score": anomaly.anomaly_score,
+                "is_anomaly": anomaly.is_anomaly,
+                "created_at": anomaly.created_at,
+            }
+            for anomaly in anomalies
         ]
     finally:
         session.close()
