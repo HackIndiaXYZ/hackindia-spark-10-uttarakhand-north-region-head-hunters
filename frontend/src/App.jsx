@@ -231,6 +231,7 @@ function App() {
                 <th>Confidence</th>
                 <th>Status</th>
                 <th>Created At</th>
+                <th>Supporting Events</th>
               </tr>
             </thead>
             <tbody>
@@ -242,6 +243,11 @@ function App() {
                   <td>{finding.confidence}</td>
                   <td>{finding.status}</td>
                   <td>{finding.created_at}</td>
+                  <td>
+                    {finding.supporting_event_ids?.length
+                      ? finding.supporting_event_ids.join(', ')
+                      : 'None'}
+                  </td>
                 </tr>
               ))}
             </tbody>
