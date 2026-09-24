@@ -89,37 +89,41 @@ function App() {
           </tbody>
         </table>
       </section>
-      <h2>Event Timeline</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>Event Type</th>
-            <th>User</th>
-            <th>Device</th>
-            <th>IP Address</th>
-            <th>Application</th>
-            <th>Process</th>
-            <th>File Path</th>
-            <th>Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          {events.map((event) => (
-            <tr key={event.id}>
-              <td>{event.timestamp}</td>
-              <td>{event.event_type}</td>
-              <td>{event.user}</td>
-              <td>{event.device}</td>
-              <td>{event.ip_address}</td>
-              <td>{event.application}</td>
-              <td>{event.process}</td>
-              <td>{event.file_path}</td>
-              <td>{event.description}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <section>
+        <h2>Event Timeline</h2>
+        <div style={{ overflowX: 'auto' }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>User</th>
+                <th>Device</th>
+                <th>IP Address</th>
+                <th>Application</th>
+                <th>Process</th>
+                <th>File Path</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((event) => (
+                <tr key={event.id}>
+                  <td>{event.timestamp}</td>
+                  <td>{event.event_type}</td>
+                  <td>{event.user}</td>
+                  <td>{event.device}</td>
+                  <td>{event.ip_address}</td>
+                  <td>{event.application}</td>
+                  <td>{event.process}</td>
+                  <td>{event.file_path}</td>
+                  <td>{event.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
       <h2>Investigation Findings</h2>
       <table>
         <thead>
