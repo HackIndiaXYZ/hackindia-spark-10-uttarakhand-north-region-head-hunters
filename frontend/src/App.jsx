@@ -8,6 +8,7 @@ function App() {
   const [findingSearch, setFindingSearch] = useState('')
   const [anomalies, setAnomalies] = useState([])
   const [selectedAnomalyModel, setSelectedAnomalyModel] = useState('all')
+  const [selectedAnomalyStatus, setSelectedAnomalyStatus] = useState('all')
   const [evidence, setEvidence] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,12 +66,17 @@ function App() {
       String(value ?? '').toLowerCase().includes(normalizedFindingSearch),
     ),
   )
-  const filteredAnomalies =
-    selectedAnomalyModel === 'all'
-      ? anomalies
-      : anomalies.filter(
-          (anomaly) => anomaly.model_name === selectedAnomalyModel,
-        )
+  const filteredAnomalies = anomalies.filter((anomaly) => {
+    const matchesModel =
+      selectedAnomalyModel === 'all' ||
+      anomaly.model_name === selectedAnomalyModel
+    const matchesStatus =
+      selectedAnomalyStatus === 'all' ||
+      (selectedAnomalyStatus === 'anomalies' && anomaly.is_anomaly === true) ||
+      (selectedAnomalyStatus === 'non-anomalies' && anomaly.is_anomaly === false)
+
+    return matchesModel && matchesStatus
+  })
 
   if (loading) {
     return <p>Loading...</p>
@@ -210,6 +216,14 @@ function App() {
           <option value="all">All Models</option>
           <option value="isolation_forest">Isolation Forest</option>
           <option value="lof">LOF</option>
+        </select>
+        <select
+          value={selectedAnomalyStatus}
+          onChange={(event) => setSelectedAnomalyStatus(event.target.value)}
+        >
+          <option value="all">All Results</option>
+          <option value="anomalies">Anomalies Only</option>
+          <option value="non-anomalies">Non-Anomalies Only</option>
         </select>
         <div style={{ overflowX: 'auto' }}>
           <table>
