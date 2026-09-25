@@ -3,6 +3,7 @@ import tempfile
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from sqlalchemy import select
 
 from backend.app.database import SessionLocal
@@ -11,6 +12,11 @@ from backend.app.models import Anomaly, Case, Evidence, Finding
 from backend.app.persistence import persist_ingestion
 from backend.app.pipeline import run_investigation_pipeline
 from backend.app.queries import get_events_by_case
+from backend.app.reporting import (
+    generate_csv_report,
+    generate_json_report,
+    generate_pdf_report,
+)
 
 app = FastAPI(title="CHITRAGUPT API")
 
@@ -164,6 +170,63 @@ def case_details(case_id: int):
         }
     finally:
         session.close()
+
+
+def _ensure_case_exists(case_id: int) -> None:
+    session = SessionLocal()
+    try:
+        if session.get(Case, case_id) is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Case {case_id} not found.",
+            )
+    finally:
+        session.close()
+
+
+@app.get("/cases/{case_id}/report/json")
+def case_json_report(case_id: int):
+    """Download a JSON investigation report for a case."""
+    _ensure_case_exists(case_id)
+    return Response(
+        content=generate_json_report(case_id),
+        media_type="application/json",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="CHITRAGUPT_case_{case_id}_report.json"'
+            )
+        },
+    )
+
+
+@app.get("/cases/{case_id}/report/csv")
+def case_csv_report(case_id: int):
+    """Download a CSV investigation report for a case."""
+    _ensure_case_exists(case_id)
+    return Response(
+        content=generate_csv_report(case_id),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="CHITRAGUPT_case_{case_id}_report.csv"'
+            )
+        },
+    )
+
+
+@app.get("/cases/{case_id}/report/pdf")
+def case_pdf_report(case_id: int):
+    """Download a PDF investigation report for a case."""
+    _ensure_case_exists(case_id)
+    return Response(
+        content=generate_pdf_report(case_id),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="CHITRAGUPT_case_{case_id}_report.pdf"'
+            )
+        },
+    )
 
 
 @app.post("/cases/{case_id}/ingest")
