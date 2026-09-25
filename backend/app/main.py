@@ -146,6 +146,29 @@ def case_evidence(case_id: int):
         session.close()
 
 
+@app.get("/cases")
+def cases():
+    """Return all persisted cases ordered by ID."""
+    session = SessionLocal()
+    try:
+        statement = select(Case).order_by(Case.id.asc())
+        case_records = session.scalars(statement).all()
+        return list(
+            {
+                "id": case.id,
+                "case_number": case.case_number,
+                "title": case.title,
+                "description": case.description,
+                "status": case.status,
+                "created_at": case.created_at,
+                "updated_at": case.updated_at,
+            }
+            for case in case_records
+        )
+    finally:
+        session.close()
+
+
 @app.get("/cases/{case_id}")
 def case_details(case_id: int):
     """Return persisted metadata for a case."""
