@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 
+const API_BASE_URL = 'http://127.0.0.1:8000'
+
 function App() {
   const [caseData, setCaseData] = useState(null)
   const [events, setEvents] = useState([])
@@ -15,6 +17,7 @@ function App() {
   const [evidence, setEvidence] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [downloadError, setDownloadError] = useState('')
 
   useEffect(() => {
     const fetchJson = (url) =>
@@ -26,11 +29,11 @@ function App() {
       })
 
     Promise.all([
-      fetchJson('http://127.0.0.1:8000/cases/1'),
-      fetchJson('http://127.0.0.1:8000/cases/1/events'),
-      fetchJson('http://127.0.0.1:8000/cases/1/findings'),
-      fetchJson('http://127.0.0.1:8000/cases/1/anomalies'),
-      fetchJson('http://127.0.0.1:8000/cases/1/evidence'),
+      fetchJson(`${API_BASE_URL}/cases/1`),
+      fetchJson(`${API_BASE_URL}/cases/1/events`),
+      fetchJson(`${API_BASE_URL}/cases/1/findings`),
+      fetchJson(`${API_BASE_URL}/cases/1/anomalies`),
+      fetchJson(`${API_BASE_URL}/cases/1/evidence`),
     ])
       .then(([data, eventData, findingData, anomalyData, evidenceData]) => {
         setCaseData(data)
@@ -42,6 +45,30 @@ function App() {
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false))
   }, [])
+
+  const downloadReport = async (format) => {
+    setDownloadError('')
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/cases/${caseData.id}/report/${format}`,
+      )
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+
+      const reportBlob = await response.blob()
+      const downloadUrl = URL.createObjectURL(reportBlob)
+      const downloadLink = document.createElement('a')
+      downloadLink.href = downloadUrl
+      downloadLink.download = `CHITRAGUPT_case_${caseData.id}_report.${format}`
+      document.body.appendChild(downloadLink)
+      downloadLink.click()
+      downloadLink.remove()
+      URL.revokeObjectURL(downloadUrl)
+    } catch (downloadRequestError) {
+      setDownloadError(`Report download failed: ${downloadRequestError.message}`)
+    }
+  }
 
   const eventTypes = [
     ...new Set(events.map((event) => event.event_type).filter(Boolean)),
@@ -112,6 +139,18 @@ function App() {
         <p>Title: {caseData.title}</p>
         <p>Description: {caseData.description}</p>
         <p>Status: {caseData.status}</p>
+        <div>
+          <button type="button" onClick={() => downloadReport('json')}>
+            Download JSON Report
+          </button>
+          <button type="button" onClick={() => downloadReport('csv')}>
+            Download CSV Report
+          </button>
+          <button type="button" onClick={() => downloadReport('pdf')}>
+            Download PDF Report
+          </button>
+        </div>
+        {downloadError && <p role="alert">{downloadError}</p>}
       </section>
       <section>
         <h2>Investigation Summary</h2>
