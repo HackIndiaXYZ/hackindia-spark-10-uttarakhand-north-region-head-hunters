@@ -1,8 +1,48 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import './App.css'
 
 const API_BASE_URL = 'http://127.0.0.1:8000'
 
+const fetchCaseData = async (caseId) => {
+  const fetchJson = (url) =>
+    fetch(url).then((response) => {
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`)
+      }
+      return response.json()
+    })
+
+  const [caseData, events, findings, anomalies, evidence] = await Promise.all([
+    fetchJson(`${API_BASE_URL}/cases/${caseId}`),
+    fetchJson(`${API_BASE_URL}/cases/${caseId}/events`),
+    fetchJson(`${API_BASE_URL}/cases/${caseId}/findings`),
+    fetchJson(`${API_BASE_URL}/cases/${caseId}/anomalies`),
+    fetchJson(`${API_BASE_URL}/cases/${caseId}/evidence`),
+  ])
+
+  return { caseData, events, findings, anomalies, evidence }
+}
+
+const formatBytes = (bytes) => {
+  if (!bytes) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / 1024 ** index).toFixed(index ? 1 : 0)} ${units[index]}`
+}
+
+const formatDate = (value) => {
+  if (!value) return 'Unknown'
+  return new Date(value).toLocaleString([], {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
 function App() {
+  const [cases, setCases] = useState([])
+  const [selectedCaseId, setSelectedCaseId] = useState(null)
+  const [caseListLoading, setCaseListLoading] = useState(true)
+  const [caseListError, setCaseListError] = useState('')
   const [caseData, setCaseData] = useState(null)
   const [events, setEvents] = useState([])
   const [eventSearch, setEventSearch] = useState('')
@@ -10,6 +50,7 @@ function App() {
   const [findings, setFindings] = useState([])
   const [findingSearch, setFindingSearch] = useState('')
   const [selectedFindingType, setSelectedFindingType] = useState('all')
+  const [expandedFindingId, setExpandedFindingId] = useState(null)
   const [selectedSupportingEventId, setSelectedSupportingEventId] = useState(null)
   const [anomalies, setAnomalies] = useState([])
   const [selectedAnomalyModel, setSelectedAnomalyModel] = useState('all')
@@ -18,24 +59,34 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [downloadError, setDownloadError] = useState('')
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [intakeResult, setIntakeResult] = useState(null)
+  const [intakeError, setIntakeError] = useState('')
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
-    const fetchJson = (url) =>
-      fetch(url).then((response) => {
+    fetch(`${API_BASE_URL}/cases`)
+      .then((response) => {
         if (!response.ok) {
           throw new Error(`Request failed with status ${response.status}`)
         }
         return response.json()
       })
+      .then((caseRecords) => {
+        setCases(caseRecords)
+        setCaseListError('')
+      })
+      .catch((requestError) => setCaseListError(requestError.message))
+      .finally(() => setCaseListLoading(false))
+  }, [])
 
-    Promise.all([
-      fetchJson(`${API_BASE_URL}/cases/1`),
-      fetchJson(`${API_BASE_URL}/cases/1/events`),
-      fetchJson(`${API_BASE_URL}/cases/1/findings`),
-      fetchJson(`${API_BASE_URL}/cases/1/anomalies`),
-      fetchJson(`${API_BASE_URL}/cases/1/evidence`),
-    ])
-      .then(([data, eventData, findingData, anomalyData, evidenceData]) => {
+  useEffect(() => {
+    if (selectedCaseId === null) return
+
+    fetchCaseData(selectedCaseId)
+      .then(({ caseData: data, events: eventData, findings: findingData, anomalies: anomalyData, evidence: evidenceData }) => {
         setCaseData(data)
         setEvents(eventData)
         setFindings(findingData)
@@ -44,7 +95,25 @@ function App() {
       })
       .catch((requestError) => setError(requestError.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [selectedCaseId])
+
+  const handleCaseSelect = (caseId) => {
+    setSelectedCaseId(caseId)
+    setCaseData(null)
+    setLoading(true)
+    setError('')
+    setExpandedFindingId(null)
+    setSelectedSupportingEventId(null)
+  }
+
+  const refreshDashboard = async () => {
+    const refreshedData = await fetchCaseData(caseData.id)
+    setCaseData(refreshedData.caseData)
+    setEvents(refreshedData.events)
+    setFindings(refreshedData.findings)
+    setAnomalies(refreshedData.anomalies)
+    setEvidence(refreshedData.evidence)
+  }
 
   const downloadReport = async (format) => {
     setDownloadError('')
@@ -68,6 +137,53 @@ function App() {
     } catch (downloadRequestError) {
       setDownloadError(`Report download failed: ${downloadRequestError.message}`)
     }
+  }
+
+  const chooseFile = (file) => {
+    if (!file) return
+    setIntakeError('')
+    setIntakeResult(null)
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setSelectedFile(null)
+      setIntakeError('Select a CSV evidence file to continue.')
+      return
+    }
+    setSelectedFile(file)
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile || uploading) return
+
+    setUploading(true)
+    setIntakeError('')
+    setIntakeResult(null)
+    const formData = new FormData()
+    formData.append('file', selectedFile)
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cases/${caseData.id}/ingest`, {
+        method: 'POST',
+        body: formData,
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.detail || `Upload failed with status ${response.status}`)
+      }
+      setIntakeResult(result)
+      await refreshDashboard()
+      setSelectedFile(null)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    } catch (uploadRequestError) {
+      setIntakeError(uploadRequestError.message)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleDrop = (event) => {
+    event.preventDefault()
+    setIsDragging(false)
+    chooseFile(event.dataTransfer.files?.[0])
   }
 
   const eventTypes = [
@@ -123,242 +239,284 @@ function App() {
     return matchesModel && matchesStatus
   })
 
-  if (loading) {
-    return <p>Loading...</p>
+  if (caseListLoading) {
+    return (
+      <div className="app-state">
+        <div className="state-mark">CG</div>
+        <p>Loading available investigations...</p>
+      </div>
+    )
+  }
+
+  if (caseListError) {
+    return (
+      <div className="app-state error-state">
+        <div className="state-mark">!</div>
+        <p>Unable to load investigations</p>
+        <span>{caseListError}</span>
+      </div>
+    )
+  }
+
+  if (!cases.length) {
+    return (
+      <div className="app-state">
+        <div className="state-mark">—</div>
+        <p>No investigations available</p>
+        <span>There are no cases registered for analysis.</span>
+      </div>
+    )
+  }
+
+  if (selectedCaseId === null) {
+    return (
+      <div className="case-selection">
+        <div className="case-selection-header">
+          <div className="brand-lockup">
+            <div className="brand-mark">C</div>
+            <div>
+              <strong>CHITRAGUPT</strong>
+              <span>FORENSIC CONSOLE</span>
+            </div>
+          </div>
+          <span className="secure-chip"><span className="status-dot" />{cases.length} investigations available</span>
+        </div>
+        <div className="case-selection-body">
+          <span className="eyebrow accent-text">INVESTIGATION WORKSPACE</span>
+          <h1>Select a case to continue</h1>
+          <p>Choose an investigation to open its evidence, timeline, findings, and anomaly analysis.</p>
+          <div className="case-options">
+            {cases.map((caseRecord) => (
+              <button className="case-option" type="button" key={caseRecord.id} onClick={() => handleCaseSelect(caseRecord.id)}>
+                <span className="case-option-topline"><span>{caseRecord.case_number}</span><em className="status-pill">{caseRecord.status}</em></span>
+                <strong>{caseRecord.title}</strong>
+                <span className="case-option-description">{caseRecord.description || 'No description available.'}</span>
+                <span className="case-option-footer">Opened {formatDate(caseRecord.created_at)} <b>OPEN CASE →</b></span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (loading || !caseData) {
+    return (
+      <div className="app-state">
+        <div className="state-mark">CG</div>
+        <p>Loading investigation workspace...</p>
+      </div>
+    )
   }
 
   if (error) {
-    return <p>Error: {error}</p>
+    return (
+      <div className="app-state error-state">
+        <div className="state-mark">!</div>
+        <p>Unable to load case data</p>
+        <span>{error}</span>
+      </div>
+    )
   }
 
   return (
-    <main>
-      <section>
-        <h1>Case Overview</h1>
-        <p>Case Number: {caseData.case_number}</p>
-        <p>Title: {caseData.title}</p>
-        <p>Description: {caseData.description}</p>
-        <p>Status: {caseData.status}</p>
-        <div>
-          <button type="button" onClick={() => downloadReport('json')}>
-            Download JSON Report
-          </button>
-          <button type="button" onClick={() => downloadReport('csv')}>
-            Download CSV Report
-          </button>
-          <button type="button" onClick={() => downloadReport('pdf')}>
-            Download PDF Report
-          </button>
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-lockup">
+          <div className="brand-mark">C</div>
+          <div>
+            <strong>CHITRAGUPT</strong>
+            <span>FORENSIC CONSOLE</span>
+          </div>
         </div>
-        {downloadError && <p role="alert">{downloadError}</p>}
-      </section>
-      <section>
-        <h2>Investigation Summary</h2>
-        <p>Total Events: {events.length}</p>
-        <p>Total Findings: {findings.length}</p>
-        <p>Total Anomalies: {anomalies.length}</p>
-        <p>Total Evidence: {evidence.length}</p>
-      </section>
-      <section>
-        <h2>Evidence</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Filename</th>
-              <th>Source</th>
-              <th>Evidence Type</th>
-              <th>File Size</th>
-              <th>SHA-256</th>
-              <th>Ingested At</th>
-              <th>Processing Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {evidence.map((item) => (
-              <tr key={item.id}>
-                <td>{item.filename}</td>
-                <td>{item.source}</td>
-                <td>{item.evidence_type}</td>
-                <td>{item.file_size}</td>
-                <td>{item.sha256}</td>
-                <td>{item.ingested_at}</td>
-                <td>{item.processing_status}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-      <section>
-        <h2>Event Timeline</h2>
-        <p>Showing {filteredEvents.length} of {events.length} events</p>
-        <input
-          type="text"
-          placeholder="Search events..."
-          value={eventSearch}
-          onChange={(event) => setEventSearch(event.target.value)}
-        />
-        <select
-          value={selectedEventType}
-          onChange={(event) => setSelectedEventType(event.target.value)}
-        >
-          <option value="all">All Event Types</option>
-          {eventTypes.map((eventType) => (
-            <option key={eventType} value={eventType}>
-              {eventType}
-            </option>
-          ))}
-        </select>
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Event Type</th>
-                <th>User</th>
-                <th>Device</th>
-                <th>IP Address</th>
-                <th>Application</th>
-                <th>Process</th>
-                <th>File Path</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredEvents.map((event) => (
-                <tr
-                  key={event.id}
-                  style={
-                    event.id === selectedSupportingEventId
-                      ? { backgroundColor: '#fff3cd' }
-                      : undefined
-                  }
-                >
-                  <td>{event.timestamp}</td>
-                  <td>{event.event_type}</td>
-                  <td>{event.user}</td>
-                  <td>{event.device}</td>
-                  <td>{event.ip_address}</td>
-                  <td>{event.application}</td>
-                  <td>{event.process}</td>
-                  <td>{event.file_path}</td>
-                  <td>{event.description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="sidebar-case">
+          <span className="eyebrow">ACTIVE CASE</span>
+          <strong>{caseData.case_number}</strong>
+          <span>{caseData.title}</span>
         </div>
-      </section>
-      <section>
-        <h2>Investigation Findings</h2>
-        <p>Showing {filteredFindings.length} of {findings.length} findings</p>
-        <input
-          type="text"
-          placeholder="Search findings..."
-          value={findingSearch}
-          onChange={(event) => setFindingSearch(event.target.value)}
-        />
-        <select
-          value={selectedFindingType}
-          onChange={(event) => setSelectedFindingType(event.target.value)}
-        >
-          <option value="all">All Finding Types</option>
-          {findingTypes.map((findingType) => (
-            <option key={findingType} value={findingType}>
-              {findingType}
-            </option>
-          ))}
-        </select>
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Finding Type</th>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Confidence</th>
-                <th>Status</th>
-                <th>Created At</th>
-                <th>Supporting Events</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredFindings.map((finding) => (
-                <tr key={finding.id}>
-                  <td>{finding.finding_type}</td>
-                  <td>{finding.title}</td>
-                  <td>{finding.description}</td>
-                  <td>{finding.confidence}</td>
-                  <td>{finding.status}</td>
-                  <td>{finding.created_at}</td>
-                  <td>
-                    {finding.supporting_event_ids?.length
-                      ? finding.supporting_event_ids.map((eventId, index) => (
-                          <span key={eventId}>
-                            <button
-                              type="button"
-                              value={eventId}
-                              onClick={() => setSelectedSupportingEventId(eventId)}
-                            >
-                              {eventId}
-                            </button>
-                            {index < finding.supporting_event_ids.length - 1
-                              ? ', '
-                              : ''}
-                          </span>
-                        ))
-                      : 'None'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <nav className="side-nav" aria-label="Investigation sections">
+          <a className="active" href="#overview"><span>01</span>Overview</a>
+          <a href="#evidence"><span>02</span>Evidence intake</a>
+          <a href="#timeline"><span>03</span>Event timeline</a>
+          <a href="#findings"><span>04</span>Findings</a>
+          <a href="#anomalies"><span>05</span>Anomaly analysis</a>
+        </nav>
+        <div className="sidebar-footer">
+          <span className="status-dot" />
+          <span>Local analysis node</span>
+          <small>API / connected</small>
         </div>
-      </section>
-      <section>
-        <h2>Anomaly Analysis</h2>
-        <p>Showing {filteredAnomalies.length} of {anomalies.length} results</p>
-        <select
-          value={selectedAnomalyModel}
-          onChange={(event) => setSelectedAnomalyModel(event.target.value)}
-        >
-          <option value="all">All Models</option>
-          <option value="isolation_forest">Isolation Forest</option>
-          <option value="lof">LOF</option>
-        </select>
-        <select
-          value={selectedAnomalyStatus}
-          onChange={(event) => setSelectedAnomalyStatus(event.target.value)}
-        >
-          <option value="all">All Results</option>
-          <option value="anomalies">Anomalies Only</option>
-          <option value="non-anomalies">Non-Anomalies Only</option>
-        </select>
-        <div style={{ overflowX: 'auto' }}>
-          <table>
-            <thead>
-              <tr>
-                <th>Event ID</th>
-                <th>Model Name</th>
-                <th>Anomaly Score</th>
-                <th>Status</th>
-                <th>Created At</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredAnomalies.map((anomaly) => (
-                <tr key={anomaly.id}>
-                  <td>{anomaly.event_id}</td>
-                  <td>{anomaly.model_name}</td>
-                  <td>{anomaly.anomaly_score}</td>
-                  <td>{anomaly.is_anomaly ? 'Anomalous' : 'Normal'}</td>
-                  <td>{anomaly.created_at}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
+      </aside>
+
+      <div className="console">
+        <header className="topbar">
+          <div className="breadcrumbs"><span>INVESTIGATIONS</span><b>/</b><strong>{caseData.case_number}</strong></div>
+          <div className="topbar-meta">
+            <span className="secure-chip"><span className="status-dot" />Evidence chain active</span>
+            <span className="topbar-time">Updated {formatDate(caseData.updated_at)}</span>
+          </div>
+        </header>
+
+        <main className="dashboard">
+          <section id="overview" className="hero-panel">
+            <div className="hero-copy">
+              <span className="eyebrow accent-text">CASE FILE / {caseData.id}</span>
+              <h1>{caseData.title}</h1>
+              <p>{caseData.description || 'No case description has been recorded.'}</p>
+              <div className="case-meta-row">
+                <span><b>CASE NUMBER</b>{caseData.case_number}</span>
+                <span><b>STATUS</b><em className="status-pill">{caseData.status}</em></span>
+                <span><b>OPENED</b>{formatDate(caseData.created_at)}</span>
+              </div>
+            </div>
+            <div className="hero-actions">
+              <span className="eyebrow">EXPORT REPORT</span>
+              <div className="report-actions">
+                <button className="button button-ghost" type="button" onClick={() => downloadReport('json')}>JSON</button>
+                <button className="button button-ghost" type="button" onClick={() => downloadReport('csv')}>CSV</button>
+                <button className="button button-primary" type="button" onClick={() => downloadReport('pdf')}>PDF REPORT</button>
+              </div>
+              {downloadError && <p className="inline-error" role="alert">{downloadError}</p>}
+            </div>
+          </section>
+
+          <section className="summary-grid" aria-label="Investigation summary">
+            <div className="summary-card cyan-accent"><span className="card-index">01 / EVENTS</span><strong>{events.length}</strong><span>Observed events</span></div>
+            <div className="summary-card amber-accent"><span className="card-index">02 / EVIDENCE</span><strong>{evidence.length}</strong><span>Evidence items</span></div>
+            <div className="summary-card red-accent"><span className="card-index">03 / FINDINGS</span><strong>{findings.length}</strong><span>Investigation findings</span></div>
+            <div className="summary-card violet-accent"><span className="card-index">04 / ANOMALIES</span><strong>{anomalies.filter((item) => item.is_anomaly).length}</strong><span>Flagged model results</span></div>
+          </section>
+
+          <section id="evidence" className="panel intake-panel">
+            <div className="section-heading">
+              <div><span className="eyebrow accent-text">01 / INGESTION</span><h2>Evidence Intake</h2><p>Register a CSV evidence source and run the investigation pipeline.</p></div>
+              <span className="section-code">INGEST / CSV</span>
+            </div>
+            <div className="intake-layout">
+              <div
+                className={`drop-zone ${isDragging ? 'dragging' : ''} ${selectedFile ? 'has-file' : ''}`}
+                onDragEnter={(event) => { event.preventDefault(); setIsDragging(true) }}
+                onDragOver={(event) => event.preventDefault()}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+              >
+                <input ref={fileInputRef} id="evidence-file" type="file" accept=".csv,text/csv" onChange={(event) => chooseFile(event.target.files?.[0])} />
+                <label htmlFor="evidence-file">
+                  <span className="upload-glyph">↑</span>
+                  <strong>{selectedFile ? selectedFile.name : 'Drop evidence file here'}</strong>
+                  <span>{selectedFile ? `${formatBytes(selectedFile.size)} ready for intake` : 'or select a CSV from your workstation'}</span>
+                </label>
+              </div>
+              <div className="intake-action">
+                <div><span className="eyebrow">SOURCE REQUIREMENT</span><p>CSV security logs with normalized event fields.</p></div>
+                <button className="button button-primary upload-button" type="button" disabled={!selectedFile || uploading} onClick={handleUpload}>
+                  {uploading ? 'PROCESSING...' : 'UPLOAD & ANALYZE'}
+                </button>
+              </div>
+            </div>
+            {intakeError && <p className="inline-error" role="alert">{intakeError}</p>}
+            {intakeResult && (
+              <div className="intake-result">
+                <span className="result-check">✓</span>
+                <div><strong>Evidence processed successfully</strong><span>Record {intakeResult.evidence_id} is now linked to this case.</span></div>
+                <div className="result-metrics"><span><b>{intakeResult.event_count}</b> events</span><span><b>{intakeResult.finding_count}</b> findings</span><span><b>{intakeResult.anomaly_count}</b> anomalies</span></div>
+              </div>
+            )}
+          </section>
+
+          <section className="panel" aria-labelledby="evidence-heading">
+            <div className="section-heading"><div><span className="eyebrow accent-text">02 / CHAIN OF CUSTODY</span><h2 id="evidence-heading">Evidence Register</h2></div><span className="section-code">{evidence.length} ITEMS</span></div>
+            <div className="table-wrap">
+              <table><thead><tr><th>Filename</th><th>Source</th><th>Type</th><th>Size</th><th>SHA-256</th><th>Ingested</th><th>Status</th></tr></thead>
+                <tbody>{evidence.length ? evidence.map((item) => <tr key={item.id}><td className="strong-cell">{item.filename}</td><td>{item.source || '—'}</td><td><span className="type-tag">{item.evidence_type}</span></td><td>{formatBytes(item.file_size)}</td><td className="hash-cell">{item.sha256}</td><td>{formatDate(item.ingested_at)}</td><td><span className="status-pill">{item.processing_status}</span></td></tr>) : <tr><td className="empty-cell" colSpan="7">No evidence registered for this case.</td></tr>}</tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="timeline" className="panel" aria-labelledby="timeline-heading">
+            <div className="section-heading"><div><span className="eyebrow accent-text">03 / EVENT RECONSTRUCTION</span><h2 id="timeline-heading">Event Timeline</h2></div><span className="section-code">{filteredEvents.length} / {events.length} VISIBLE</span></div>
+            <div className="filter-bar"><label className="search-field"><span>⌕</span><input type="text" placeholder="Search events, users, devices..." value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} /></label><select value={selectedEventType} onChange={(event) => setSelectedEventType(event.target.value)}><option value="all">All event types</option>{eventTypes.map((eventType) => <option key={eventType} value={eventType}>{eventType}</option>)}</select></div>
+            <div className="table-wrap timeline-table"><table><thead><tr><th>Timestamp</th><th>Event</th><th>Actor / Device</th><th>Network</th><th>Process</th><th>File path</th><th>Description</th></tr></thead><tbody>{filteredEvents.length ? filteredEvents.map((event) => <tr className={event.id === selectedSupportingEventId ? 'selected-row' : ''} key={event.id}><td className="time-cell">{formatDate(event.timestamp)}</td><td><span className="event-code">{event.event_type}</span></td><td><strong>{event.user}</strong><small>{event.device}</small></td><td>{event.ip_address}</td><td>{event.process}</td><td className="path-cell">{event.file_path || '—'}</td><td>{event.description}</td></tr>) : <tr><td className="empty-cell" colSpan="7">No events match the current filters.</td></tr>}</tbody></table></div>
+          </section>
+
+          <div className="split-grid">
+            <section id="findings" className="panel" aria-labelledby="findings-heading">
+              <div className="section-heading"><div><span className="eyebrow accent-text">04 / DETERMINATIONS</span><h2 id="findings-heading">Investigation Findings</h2></div><span className="section-code">{filteredFindings.length} / {findings.length}</span></div>
+              <div className="filter-bar compact"><label className="search-field"><span>⌕</span><input type="text" placeholder="Search findings..." value={findingSearch} onChange={(event) => setFindingSearch(event.target.value)} /></label><select value={selectedFindingType} onChange={(event) => setSelectedFindingType(event.target.value)}><option value="all">All finding types</option>{findingTypes.map((findingType) => <option key={findingType} value={findingType}>{findingType}</option>)}</select></div>
+              <div className="finding-list">{filteredFindings.length ? filteredFindings.map((finding) => {
+                const supportingEventIds = Array.isArray(finding.supporting_event_ids)
+                  ? finding.supporting_event_ids
+                  : []
+                const signalEntries = finding.signals && typeof finding.signals === 'object'
+                  ? Object.entries(finding.signals)
+                  : []
+                const isExpanded = expandedFindingId === finding.id
+
+                return (
+                  <article className="finding-item" key={finding.id}>
+                    <div className="finding-topline">
+                      <span className="finding-severity">FINDING / {finding.id}</span>
+                      <button
+                        className="finding-open"
+                        type="button"
+                        aria-expanded={isExpanded}
+                        onClick={() => setExpandedFindingId(isExpanded ? null : finding.id)}
+                      >
+                        {isExpanded ? 'CLOSE' : 'OPEN'}
+                      </button>
+                    </div>
+                    <h3>{finding.title}</h3>
+                    <p>{finding.description}</p>
+                    <div className="finding-footer">
+                      <span>Confidence <b>{finding.confidence ?? '—'}</b></span>
+                      <span>Supporting events</span>
+                      <div className="event-links">
+                        {supportingEventIds.length
+                          ? supportingEventIds.map((eventId) => (
+                              <button className="event-link" type="button" key={eventId} onClick={() => setSelectedSupportingEventId(eventId)}>
+                                #{eventId}
+                              </button>
+                            ))
+                          : <span>No supporting events</span>}
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="finding-detail">
+                        <dl className="finding-detail-grid">
+                          <div><dt>Finding type</dt><dd>{finding.finding_type || '—'}</dd></div>
+                          <div><dt>Title</dt><dd>{finding.title || '—'}</dd></div>
+                          <div><dt>Description</dt><dd>{finding.description || '—'}</dd></div>
+                          <div><dt>Confidence</dt><dd>{finding.confidence ?? '—'}</dd></div>
+                          <div><dt>Status</dt><dd>{finding.status || '—'}</dd></div>
+                          <div><dt>Supporting event IDs</dt><dd>{supportingEventIds.length ? supportingEventIds.join(', ') : 'No supporting events'}</dd></div>
+                        </dl>
+                        {signalEntries.length > 0 && (
+                          <div className="finding-signals">
+                            <span className="eyebrow accent-text">INVESTIGATION SIGNALS</span>
+                            {signalEntries.map(([signalName, signalValue]) => (
+                              <div className="signal-row" key={signalName}>
+                                <strong>{signalName}</strong>
+                                <pre>{JSON.stringify(signalValue, null, 2)}</pre>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                )
+              }) : <div className="empty-state">No findings match the current filters.</div>}</div>
+            </section>
+
+            <section id="anomalies" className="panel" aria-labelledby="anomalies-heading">
+              <div className="section-heading"><div><span className="eyebrow accent-text">05 / MODEL SIGNALS</span><h2 id="anomalies-heading">Anomaly Analysis</h2></div><span className="section-code">{filteredAnomalies.length} RESULTS</span></div>
+              <div className="filter-bar compact"><select value={selectedAnomalyModel} onChange={(event) => setSelectedAnomalyModel(event.target.value)}><option value="all">All models</option><option value="isolation_forest">Isolation Forest</option><option value="lof">LOF</option></select><select value={selectedAnomalyStatus} onChange={(event) => setSelectedAnomalyStatus(event.target.value)}><option value="all">All results</option><option value="anomalies">Anomalies only</option><option value="non-anomalies">Non-anomalies only</option></select></div>
+              <div className="anomaly-list">{filteredAnomalies.length ? filteredAnomalies.map((anomaly) => <div className={`anomaly-row ${anomaly.is_anomaly ? 'is-alert' : ''}`} key={anomaly.id}><span className="anomaly-indicator" /><div><strong>{anomaly.model_name}</strong><small>Event #{anomaly.event_id} · {formatDate(anomaly.created_at)}</small></div><span className="anomaly-score">{Number(anomaly.anomaly_score).toFixed(3)}</span><span className={anomaly.is_anomaly ? 'alert-text' : 'normal-text'}>{anomaly.is_anomaly ? 'FLAGGED' : 'NORMAL'}</span></div>) : <div className="empty-state">No anomaly results match the current filters.</div>}</div>
+            </section>
+          </div>
+        </main>
+      </div>
+    </div>
   )
 }
 
