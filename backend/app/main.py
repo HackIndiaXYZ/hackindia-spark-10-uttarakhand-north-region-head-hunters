@@ -9,7 +9,11 @@ from sqlalchemy import select
 from backend.app.database import SessionLocal
 from backend.app.ingestion import ingest_csv
 from backend.app.models import Anomaly, Case, Evidence, Finding
-from backend.app.evidence_storage import remove_retained_evidence, retain_evidence_file
+from backend.app.evidence_storage import (
+    remove_retained_evidence,
+    retain_evidence_file,
+    verify_evidence_integrity,
+)
 from backend.app.persistence import delete_persisted_ingestion, persist_ingestion
 from backend.app.pipeline import run_investigation_pipeline
 from backend.app.queries import get_events_by_case
@@ -145,6 +149,17 @@ def case_evidence(case_id: int):
         ]
     finally:
         session.close()
+
+
+@app.get("/evidence/{evidence_id}/integrity")
+def evidence_integrity(evidence_id: int):
+    """Verify a retained evidence file against its persisted SHA-256 hash."""
+    result = verify_evidence_integrity(evidence_id)
+    if result["status"] == "invalid_evidence_id":
+        raise HTTPException(status_code=400, detail=result["message"])
+    if result["status"] == "missing_evidence":
+        raise HTTPException(status_code=404, detail=result["message"])
+    return result
 
 
 @app.get("/cases")

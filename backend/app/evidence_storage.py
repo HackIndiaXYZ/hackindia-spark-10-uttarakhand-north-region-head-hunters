@@ -2,7 +2,13 @@
 
 import os
 import shutil
+from hashlib import sha256
 from pathlib import Path
+
+from sqlalchemy import select
+
+from backend.app.database import SessionLocal
+from backend.app.models import Evidence
 
 
 EVIDENCE_STORAGE_DIR = Path(__file__).resolve().parents[2] / "data" / "evidence"
@@ -47,3 +53,73 @@ def remove_retained_evidence(path: str | Path | None) -> None:
     """Remove a retained evidence file when a later operation fails."""
     if path is not None:
         Path(path).unlink(missing_ok=True)
+
+
+def _sha256_file(file_path: Path) -> str:
+    digest = sha256()
+    with file_path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _retained_evidence_path(evidence: Evidence) -> Path:
+    extension = Path(evidence.filename).suffix
+    return EVIDENCE_STORAGE_DIR / f"{evidence.id}{extension}"
+
+
+def verify_evidence_integrity(evidence_id: int) -> dict:
+    """Compare a retained evidence file with its persisted SHA-256 hash."""
+    if (
+        not isinstance(evidence_id, int)
+        or isinstance(evidence_id, bool)
+        or evidence_id <= 0
+    ):
+        return {
+            "evidence_id": evidence_id,
+            "status": "invalid_evidence_id",
+            "matches": None,
+            "message": "Evidence ID must be a positive integer.",
+        }
+
+    session = SessionLocal()
+    try:
+        evidence = session.scalar(select(Evidence).where(Evidence.id == evidence_id))
+        if evidence is None:
+            return {
+                "evidence_id": evidence_id,
+                "status": "missing_evidence",
+                "matches": None,
+                "message": f"Evidence {evidence_id} was not found.",
+            }
+
+        retained_path = _retained_evidence_path(evidence)
+        result = {
+            "evidence_id": evidence.id,
+            "status": "missing_file",
+            "matches": None,
+            "stored_sha256": evidence.sha256,
+            "calculated_sha256": None,
+            "file_path": str(retained_path),
+            "message": f"Retained evidence file is missing: {retained_path.name}.",
+        }
+        if not retained_path.is_file():
+            return result
+
+        calculated_sha256 = _sha256_file(retained_path)
+        matches = calculated_sha256 == evidence.sha256
+        result.update(
+            {
+                "status": "match" if matches else "mismatch",
+                "matches": matches,
+                "calculated_sha256": calculated_sha256,
+                "message": (
+                    "Retained evidence hash matches the database hash."
+                    if matches
+                    else "Retained evidence hash does not match the database hash."
+                ),
+            }
+        )
+        return result
+    finally:
+        session.close()
