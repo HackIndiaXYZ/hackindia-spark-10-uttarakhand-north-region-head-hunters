@@ -38,7 +38,17 @@ const formatDate = (value) => {
   })
 }
 
+const getPreferredTheme = () => {
+  if (typeof window === 'undefined') return 'light'
+  const storedTheme = localStorage.getItem('chitragupt-theme')
+  if (storedTheme === 'light' || storedTheme === 'dark') {
+    return storedTheme
+  }
+  return 'light'
+}
+
 function App() {
+  const [theme, setTheme] = useState(() => getPreferredTheme())
   const [cases, setCases] = useState([])
   const [selectedCaseId, setSelectedCaseId] = useState(null)
   const [caseListLoading, setCaseListLoading] = useState(true)
@@ -64,7 +74,13 @@ function App() {
   const [uploading, setUploading] = useState(false)
   const [intakeResult, setIntakeResult] = useState(null)
   const [intakeError, setIntakeError] = useState('')
+  const [findingExplanations, setFindingExplanations] = useState({})
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('chitragupt-theme', theme)
+  }, [theme])
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/cases`)
@@ -143,11 +159,15 @@ function App() {
     if (!file) return
     setIntakeError('')
     setIntakeResult(null)
-    if (!file.name.toLowerCase().endsWith('.csv')) {
+
+    const normalizedName = file.name.toLowerCase()
+    const isSupported = normalizedName.endsWith('.csv') || normalizedName.endsWith('.xml')
+    if (!isSupported) {
       setSelectedFile(null)
-      setIntakeError('Select a CSV evidence file to continue.')
+      setIntakeError('Select a CSV or XML evidence file to continue.')
       return
     }
+
     setSelectedFile(file)
   }
 
@@ -252,6 +272,47 @@ function App() {
         targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' })
       }
     }, isFilteredOut ? 60 : 0)
+  }
+
+  const handleExplainFinding = async (finding) => {
+    const previous = findingExplanations[finding.id] || {}
+    setFindingExplanations((current) => ({
+      ...current,
+      [finding.id]: {
+        ...previous,
+        loading: true,
+        error: '',
+      },
+    }))
+
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/cases/${caseData.id}/findings/${finding.id}/explanation`,
+        { method: 'POST' },
+      )
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(result.detail || `Request failed with status ${response.status}`)
+      }
+
+      setFindingExplanations((current) => ({
+        ...current,
+        [finding.id]: {
+          loading: false,
+          error: '',
+          result,
+        },
+      }))
+    } catch (requestError) {
+      setFindingExplanations((current) => ({
+        ...current,
+        [finding.id]: {
+          loading: false,
+          error: requestError.message,
+          result: previous.result || null,
+        },
+      }))
+    }
   }
 
   if (caseListLoading) {
@@ -367,6 +428,15 @@ function App() {
         <header className="topbar">
           <div className="breadcrumbs"><span>INVESTIGATIONS</span><b>/</b><strong>{caseData.case_number}</strong></div>
           <div className="topbar-meta">
+            <button
+              type="button"
+              className="theme-toggle"
+              onClick={() => setTheme((currentTheme) => (currentTheme === 'dark' ? 'light' : 'dark'))}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <span className="theme-toggle-icon">{theme === 'dark' ? '☀' : '☾'}</span>
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
             <span className="secure-chip"><span className="status-dot" />Evidence chain active</span>
             <span className="topbar-time">Updated {formatDate(caseData.updated_at)}</span>
           </div>
@@ -415,15 +485,15 @@ function App() {
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handleDrop}
               >
-                <input ref={fileInputRef} id="evidence-file" type="file" accept=".csv,text/csv" onChange={(event) => chooseFile(event.target.files?.[0])} />
+                <input ref={fileInputRef} id="evidence-file" type="file" accept=".csv,.xml,text/csv,application/xml" onChange={(event) => chooseFile(event.target.files?.[0])} />
                 <label htmlFor="evidence-file">
                   <span className="upload-glyph">↑</span>
                   <strong>{selectedFile ? selectedFile.name : 'Drop evidence file here'}</strong>
-                  <span>{selectedFile ? `${formatBytes(selectedFile.size)} ready for intake` : 'or select a CSV from your workstation'}</span>
+                  <span>{selectedFile ? `${formatBytes(selectedFile.size)} ready for intake` : 'or select a CSV or XML file from your workstation'}</span>
                 </label>
               </div>
               <div className="intake-action">
-                <div><span className="eyebrow">SOURCE REQUIREMENT</span><p>CSV security logs with normalized event fields.</p></div>
+                <div><span className="eyebrow">SOURCE REQUIREMENT</span><p>CSV or Windows Event XML with normalized forensic fields.</p></div>
                 <button className="button button-primary upload-button" type="button" disabled={!selectedFile || uploading} onClick={handleUpload}>
                   {uploading ? 'PROCESSING...' : 'UPLOAD & ANALYZE'}
                 </button>
@@ -466,6 +536,7 @@ function App() {
                   ? Object.entries(finding.signals)
                   : []
                 const isExpanded = expandedFindingId === finding.id
+                const explanationState = findingExplanations[finding.id] || null
                 const resolvedEvents = supportingEventIds.map((eventId) => ({
                   id: eventId,
                   event: events.find((event) => event.id === eventId) ?? null,
@@ -475,14 +546,24 @@ function App() {
                   <article className="finding-item" key={finding.id}>
                     <div className="finding-topline">
                       <span className="finding-severity">FINDING / {finding.id}</span>
-                      <button
-                        className="finding-open"
-                        type="button"
-                        aria-expanded={isExpanded}
-                        onClick={() => setExpandedFindingId(isExpanded ? null : finding.id)}
-                      >
-                        {isExpanded ? 'CLOSE' : 'OPEN'}
-                      </button>
+                      <div className="finding-actions">
+                        <button
+                          className="finding-open finding-explain"
+                          type="button"
+                          disabled={explanationState?.loading}
+                          onClick={() => handleExplainFinding(finding)}
+                        >
+                          {explanationState?.loading ? 'GENERATING...' : 'AI Explanation'}
+                        </button>
+                        <button
+                          className="finding-open"
+                          type="button"
+                          aria-expanded={isExpanded}
+                          onClick={() => setExpandedFindingId(isExpanded ? null : finding.id)}
+                        >
+                          {isExpanded ? 'CLOSE' : 'OPEN'}
+                        </button>
+                      </div>
                     </div>
                     <h3>{finding.title}</h3>
                     <p>{finding.description}</p>
@@ -505,6 +586,45 @@ function App() {
                           : <span>No supporting events</span>}
                       </div>
                     </div>
+                    {explanationState?.error && (
+                      <div className="finding-explanation finding-explanation-error">
+                        <strong>AI explanation unavailable</strong>
+                        <span>{explanationState.error}</span>
+                      </div>
+                    )}
+                    {explanationState?.result && (
+                      <div className="finding-explanation">
+                        <span className="eyebrow accent-text">AI EXPLANATION</span>
+                        <p className="explanation-summary">{explanationState.result.summary}</p>
+                        {Array.isArray(explanationState.result.reasoning) && explanationState.result.reasoning.length > 0 && (
+                          <ul className="explanation-list">
+                            {explanationState.result.reasoning.map((reason) => (
+                              <li key={reason}>{reason}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {Array.isArray(explanationState.result.limitations) && explanationState.result.limitations.length > 0 && (
+                          <div className="explanation-section">
+                            <strong>Limitations</strong>
+                            <ul className="explanation-list compact">
+                              {explanationState.result.limitations.map((limit) => (
+                                <li key={limit}>{limit}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {Array.isArray(explanationState.result.recommended_investigation_points) && explanationState.result.recommended_investigation_points.length > 0 && (
+                          <div className="explanation-section">
+                            <strong>Recommended investigation points</strong>
+                            <ul className="explanation-list compact">
+                              {explanationState.result.recommended_investigation_points.map((point) => (
+                                <li key={point}>{point}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {isExpanded && (
                       <div className="finding-detail">
                         <dl className="finding-detail-grid">

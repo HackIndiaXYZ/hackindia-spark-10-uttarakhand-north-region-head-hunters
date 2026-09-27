@@ -1,9 +1,13 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 html {
@@ -13,7 +17,8 @@ html {
 body {
   min-width: 320px;
   margin: 0;
-  background: #080c14;
+  background: #f3efe8;
+  color: #1a1d24;
 }
 
 #root {

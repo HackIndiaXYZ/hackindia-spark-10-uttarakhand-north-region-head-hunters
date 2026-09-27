@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backend.app.models import Event
+    from .models import Event
 
 
 def _has_value(value: str | None) -> float:

@@ -54,6 +54,20 @@ def test_run_investigation_pipeline_processes_sample_data():
         assert "possible_ransomware_activity" in finding_types
         assert all(finding["supporting_event_ids"] for finding in result["findings"])
 
+        file_transfer_finding = next(
+            finding
+            for finding in result["findings"]
+            if finding["finding_type"] == "possible_file_transfer"
+        )
+        description = file_transfer_finding["description"]
+        assert "ava.quill" in description or "ORION-LT-07" in description
+        assert (
+            "client_roster.xlsx" in description
+            or "atlas_bundle.zip" in description
+            or "device_connected" in description
+            or "file_copy" in description
+        )
+
         verify_session = SessionLocal()
         try:
             persisted_findings = verify_session.scalars(

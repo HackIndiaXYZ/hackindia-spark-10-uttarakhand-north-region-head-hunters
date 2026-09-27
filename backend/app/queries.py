@@ -4,8 +4,8 @@ from datetime import datetime
 
 from sqlalchemy import select
 
-from backend.app.database import SessionLocal
-from backend.app.models import Event
+from .database import SessionLocal
+from .models import Event
 
 
 def get_events_by_case(

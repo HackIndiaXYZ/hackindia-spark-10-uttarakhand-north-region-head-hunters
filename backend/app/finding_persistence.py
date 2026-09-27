@@ -2,8 +2,8 @@
 
 from datetime import datetime, timezone
 
-from backend.app.database import SessionLocal
-from backend.app.models import Finding
+from .database import SessionLocal
+from .models import Finding
 
 
 def persist_findings(case_id: int, findings: list[dict]) -> list[Finding]:

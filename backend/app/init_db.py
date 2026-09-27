@@ -1,7 +1,7 @@
 """Initialize the database tables defined by the ORM models."""
 
-from backend.app.database import engine
-from backend.app.models import Base
+from .database import engine
+from .models import Base
 
 
 def init_db() -> None:

@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING
 
 from sklearn.ensemble import IsolationForest
 
-from backend.app.features import extract_event_features
+from .features import extract_event_features
 
 if TYPE_CHECKING:
-    from backend.app.models import Event
+    from .models import Event
 
 
 def run_isolation_forest(

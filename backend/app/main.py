@@ -7,23 +7,38 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from sqlalchemy import select
 
-from backend.app.database import SessionLocal
-from backend.app.ingestion import ingest_csv
-from backend.app.models import Anomaly, Case, Evidence, Finding
-from backend.app.evidence_storage import (
+from .database import SessionLocal
+from .ingestion import ingest_csv
+from .models import Anomaly, Case, Evidence, Event, Finding
+from .evidence_storage import (
     remove_retained_evidence,
     retain_evidence_file,
     verify_evidence_integrity,
 )
-from backend.app.persistence import delete_persisted_ingestion, persist_ingestion
-from backend.app.pipeline import run_investigation_pipeline
-from backend.app.queries import get_events_by_case
-from backend.app.reporting import (
+from .persistence import delete_persisted_ingestion, persist_ingestion
+from .pipeline import run_investigation_pipeline
+from .queries import get_events_by_case
+from .reporting import (
     generate_csv_report,
     generate_json_report,
     generate_pdf_report,
 )
-from backend.app.windows_event_ingestion import ingest_windows_event_xml
+from .windows_event_ingestion import ingest_windows_event_xml
+from .ollama_explanation import (
+    OllamaHTTPError,
+    OllamaOutputError,
+    OllamaTimeoutError,
+    OllamaUnavailableError,
+    explain_finding,
+)
+
+
+MAX_EXPLANATION_SUPPORTING_EVENTS = 25
+MAX_EXPLANATION_ANOMALIES = 50
+
+
+def _bounded_explanation_text(value: str | None, max_length: int = 1200) -> str | None:
+    return value[:max_length] if isinstance(value, str) else None
 
 app = FastAPI(title="CHITRAGUPT API")
 
@@ -95,6 +110,154 @@ def case_findings(case_id: int):
         ]
     finally:
         session.close()
+
+
+@app.post("/cases/{case_id}/findings/{finding_id}/explanation")
+def explain_case_finding(case_id: int, finding_id: int):
+    """Return an optional Ollama explanation of a persisted case finding."""
+    session = SessionLocal()
+    try:
+        case = session.scalar(select(Case).where(Case.id == case_id))
+        if case is None:
+            raise HTTPException(status_code=404, detail=f"Case {case_id} not found.")
+
+        finding = session.scalar(
+            select(Finding).where(
+                Finding.id == finding_id,
+                Finding.case_id == case_id,
+            )
+        )
+        if finding is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Finding {finding_id} was not found in case {case_id}.",
+            )
+
+        persisted_event_ids = finding.supporting_event_ids or []
+        valid_event_ids = list(
+            dict.fromkeys(
+                event_id
+                for event_id in persisted_event_ids
+                if isinstance(event_id, int) and not isinstance(event_id, bool)
+            )
+        )
+        bounded_event_ids = valid_event_ids[:MAX_EXPLANATION_SUPPORTING_EVENTS]
+        supporting_events = []
+        if bounded_event_ids:
+            supporting_events = session.scalars(
+                select(Event)
+                .where(
+                    Event.case_id == case_id,
+                    Event.id.in_(bounded_event_ids),
+                )
+                .order_by(Event.timestamp.asc(), Event.id.asc())
+            ).all()
+
+        actual_event_ids = [event.id for event in supporting_events]
+        evidence_ids = list(
+            dict.fromkeys(
+                event.evidence_id
+                for event in supporting_events
+                if event.evidence_id is not None
+            )
+        )
+        evidence_items = []
+        if evidence_ids:
+            evidence_items = session.scalars(
+                select(Evidence)
+                .where(
+                    Evidence.case_id == case_id,
+                    Evidence.id.in_(evidence_ids),
+                )
+                .order_by(Evidence.id.asc())
+            ).all()
+
+        anomalies = []
+        if actual_event_ids:
+            anomalies = session.scalars(
+                select(Anomaly)
+                .where(
+                    Anomaly.case_id == case_id,
+                    Anomaly.event_id.in_(actual_event_ids),
+                )
+                .order_by(Anomaly.id.asc())
+                .limit(MAX_EXPLANATION_ANOMALIES)
+            ).all()
+
+        finding_context = {
+            "case": {
+                "id": case.id,
+                "case_number": _bounded_explanation_text(case.case_number, 255),
+                "title": _bounded_explanation_text(case.title, 512),
+                "description": _bounded_explanation_text(case.description, 2000),
+            },
+            "finding": {
+                "id": finding.id,
+                "finding_type": _bounded_explanation_text(finding.finding_type, 255),
+                "title": _bounded_explanation_text(finding.title, 512),
+                "description": _bounded_explanation_text(finding.description, 2000),
+                "confidence": finding.confidence,
+                "status": _bounded_explanation_text(finding.status, 100),
+                "supporting_event_ids": actual_event_ids,
+                "supporting_event_count_total": len(valid_event_ids),
+                "supporting_events_truncated": (
+                    len(valid_event_ids) > len(actual_event_ids)
+                ),
+            },
+            "supporting_events": [
+                {
+                    "id": event.id,
+                    "timestamp": event.timestamp.isoformat() if event.timestamp else None,
+                    "event_type": _bounded_explanation_text(event.event_type, 255),
+                    "source": _bounded_explanation_text(event.source, 512),
+                    "user": _bounded_explanation_text(event.user, 512),
+                    "device": _bounded_explanation_text(event.device, 512),
+                    "ip_address": _bounded_explanation_text(event.ip_address, 128),
+                    "application": _bounded_explanation_text(event.application, 512),
+                    "process": _bounded_explanation_text(event.process, 512),
+                    "file_path": _bounded_explanation_text(event.file_path, 1200),
+                    "description": _bounded_explanation_text(event.description, 2000),
+                    "evidence_id": event.evidence_id,
+                }
+                for event in supporting_events
+            ],
+            "evidence": [
+                {
+                    "id": evidence.id,
+                    "filename": _bounded_explanation_text(evidence.filename, 512),
+                    "source": _bounded_explanation_text(evidence.source, 512),
+                    "evidence_type": _bounded_explanation_text(evidence.evidence_type, 255),
+                    "file_size": evidence.file_size,
+                    "sha256": evidence.sha256,
+                }
+                for evidence in evidence_items
+            ],
+            "persisted_anomalies": [
+                {
+                    "event_id": anomaly.event_id,
+                    "model_name": _bounded_explanation_text(anomaly.model_name, 255),
+                    "anomaly_score": anomaly.anomaly_score,
+                    "is_anomaly": anomaly.is_anomaly,
+                }
+                for anomaly in anomalies
+            ],
+        }
+    finally:
+        session.close()
+
+    try:
+        return explain_finding(finding_context)
+    except OllamaTimeoutError as exc:
+        raise HTTPException(status_code=504, detail="Ollama explanation timed out.") from exc
+    except OllamaUnavailableError as exc:
+        raise HTTPException(status_code=503, detail="Ollama is unavailable.") from exc
+    except OllamaHTTPError as exc:
+        raise HTTPException(status_code=502, detail="Ollama returned an HTTP error.") from exc
+    except OllamaOutputError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Ollama returned an invalid explanation.",
+        ) from exc
 
 
 @app.get("/cases/{case_id}/anomalies")

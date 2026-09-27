@@ -1,13 +1,13 @@
 """Deterministic end-to-end investigation pipeline for CHITRAGUPT."""
 
-from backend.app.anomaly import run_isolation_forest
-from backend.app.anomaly_persistence import persist_anomalies
-from backend.app.correlation import correlate_events
-from backend.app.finding_persistence import persist_findings
-from backend.app.inference import infer_findings
-from backend.app.lof import run_lof
-from backend.app.queries import get_events_by_case
-from backend.app.rules import (
+from .anomaly import run_isolation_forest
+from .anomaly_persistence import persist_anomalies
+from .correlation import correlate_events
+from .finding_persistence import persist_findings
+from .inference import infer_findings
+from .lof import run_lof
+from .queries import get_events_by_case
+from .rules import (
     evaluate_file_transfer_rule,
     evaluate_ransomware_rule,
 )

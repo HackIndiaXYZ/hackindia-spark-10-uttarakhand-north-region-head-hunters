@@ -7,7 +7,7 @@ from typing import Any
 
 import pandas as pd
 
-from backend.app.models import Evidence, Event
+from .models import Evidence, Event
 
 
 REQUIRED_COLUMNS = (

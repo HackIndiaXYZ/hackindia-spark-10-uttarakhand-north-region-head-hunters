@@ -2,8 +2,8 @@
 
 from sqlalchemy import delete, select
 
-from backend.app.database import SessionLocal
-from backend.app.models import Evidence, Event
+from .database import SessionLocal
+from .models import Evidence, Event
 
 
 def persist_ingestion(evidence, events):

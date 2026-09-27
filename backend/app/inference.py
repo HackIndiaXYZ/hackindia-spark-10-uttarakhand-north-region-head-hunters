@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backend.app.models import Event
+    from .models import Event
 
 
 _FINDING_TYPE = "possible_file_transfer"
@@ -21,6 +22,78 @@ _RULE_TO_FINDING_TYPE = {
 }
 
 
+def _event_sort_key(event: Event) -> tuple[int, str, int]:
+    timestamp = getattr(event, "timestamp", None)
+    timestamp_text = ""
+    if isinstance(timestamp, datetime):
+        timestamp_text = timestamp.isoformat()
+    return (0 if timestamp_text else 1, timestamp_text, int(event.id))
+
+
+def _event_value_list(events: list[Event], attribute: str) -> list[str]:
+    values: list[str] = []
+    for event in events:
+        value = getattr(event, attribute, None)
+        if value and value not in values:
+            values.append(str(value))
+    return values
+
+
+def _describe_event_sequence(events: list[Event], *, finding_type: str) -> str:
+    if not events:
+        return (
+            "No supporting events were available for this finding. The available evidence is insufficient "
+            "to describe the underlying activity beyond the rule match and correlation signals."
+        )
+
+    ordered_events = sorted(events, key=_event_sort_key)
+    user_names = _event_value_list(ordered_events, "user")
+    device_names = _event_value_list(ordered_events, "device")
+    applications = _event_value_list(ordered_events, "application")
+    file_targets = []
+    for event in ordered_events:
+        file_path = getattr(event, "file_path", None)
+        if file_path and file_path not in file_targets:
+            file_targets.append(str(file_path))
+
+    event_types = [
+        str(event.event_type)
+        for event in ordered_events
+        if getattr(event, "event_type", None)
+    ]
+    context_bits = []
+    if user_names:
+        context_bits.append(f"user {', '.join(user_names)}")
+    if device_names:
+        context_bits.append(f"device {', '.join(device_names)}")
+    if applications:
+        context_bits.append(f"application {', '.join(applications)}")
+    if file_targets:
+        context_bits.append(f"file path(s) {', '.join(file_targets[:3])}")
+    if event_types:
+        sequence_text = " -> ".join(event_types[:5])
+        context_bits.append(f"event sequence {sequence_text}")
+
+    if not context_bits:
+        return (
+            "The available supporting events do not provide enough detail to describe the activity beyond the "
+            "rule match and correlation signals."
+        )
+
+    observed_context = "; ".join(context_bits)
+    if finding_type == _FINDING_TYPE:
+        description = (
+            f"Observed supporting events include {observed_context}. This pattern is consistent with a file-transfer or removable-media indicator in the available evidence, "
+            "but the available evidence does not establish that a transfer completed successfully."
+        )
+    else:
+        description = (
+            f"Observed supporting events include {observed_context}. This pattern may be consistent with ransomware-related activity in the available evidence, "
+            "but the available evidence does not establish execution, encryption, or a successful ransomware payload without explicit supporting events."
+        )
+    return description
+
+
 def infer_findings(
     events: list[Event],
     rule_results: list[dict],
@@ -29,8 +102,6 @@ def infer_findings(
     lof_results: list[dict],
 ) -> list[dict]:
     """Combine supplied forensic signals into deterministic investigation findings."""
-    del events
-
     matched_rules_by_finding_type = {
         finding_type: {} for finding_type in _RULE_TO_FINDING_TYPE
     }
@@ -82,20 +153,38 @@ def infer_findings(
                 confidence += 0.20
             confidence = round(min(confidence, 0.90), 2)
 
-            if finding_type == _FINDING_TYPE:
-                description = (
-                    "Finding based on an explicit file-transfer/removable-media "
-                    "rule match and event correlation."
+            supporting_events = [
+                event
+                for event in sorted(events, key=_event_sort_key)
+                if event.id in sorted_supporting_event_ids
+            ]
+            description = _describe_event_sequence(
+                supporting_events,
+                finding_type=finding_type,
+            )
+            if relevant_isolation_forest_results or relevant_lof_results:
+                model_summary = []
+                if any(result.get("is_anomaly") is True for result in relevant_isolation_forest_results):
+                    model_summary.append("Isolation Forest")
+                if any(result.get("is_anomaly") is True for result in relevant_lof_results):
+                    model_summary.append("LOF")
+                if model_summary:
+                    description += (
+                        f" Additional anomaly indicators were produced by {', '.join(model_summary)} for related events, "
+                        "but these indicators are not proof of malicious activity on their own."
+                    )
+            if event_correlations:
+                shared_attributes = sorted(
+                    {
+                        attribute
+                        for correlation in event_correlations
+                        for attribute in correlation.get("shared_attributes", [])
+                    }
                 )
-            else:
-                description = (
-                    "Finding based on an explicit ransomware activity rule match "
-                    "and event correlation."
-                )
-            if relevant_isolation_forest_results:
-                description += " Supporting Isolation Forest anomaly-model signals are available."
-            if relevant_lof_results:
-                description += " Supporting LOF anomaly-model signals are available."
+                if shared_attributes:
+                    description += (
+                        f" Related events also shared {', '.join(shared_attributes)} within the same activity window."
+                    )
 
             findings.append(
                 {

@@ -2,8 +2,8 @@
 
 from datetime import datetime, timezone
 
-from backend.app.database import SessionLocal
-from backend.app.models import Anomaly
+from .database import SessionLocal
+from .models import Anomaly
 
 
 def persist_anomalies(

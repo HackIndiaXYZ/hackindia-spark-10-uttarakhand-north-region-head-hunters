@@ -7,8 +7,8 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from backend.app.database import SessionLocal
-from backend.app.models import Evidence
+from .database import SessionLocal
+from .models import Evidence
 
 
 EVIDENCE_STORAGE_DIR = Path(__file__).resolve().parents[2] / "data" / "evidence"

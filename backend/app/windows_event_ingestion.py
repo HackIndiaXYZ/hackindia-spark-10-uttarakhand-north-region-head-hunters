@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
 
-from backend.app.models import Evidence, Event
+from .models import Evidence, Event
 
 
 def _local_name(tag: str) -> str:

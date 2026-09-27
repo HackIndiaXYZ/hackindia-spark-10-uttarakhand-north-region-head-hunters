@@ -14,8 +14,8 @@ from reportlab.lib.units import inch
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from sqlalchemy import select
 
-from backend.app.database import SessionLocal
-from backend.app.models import Anomaly, Case, Evidence, Event, Finding
+from .database import SessionLocal
+from .models import Anomaly, Case, Evidence, Event, Finding
 
 
 def _isoformat(value: datetime | None) -> str | None:
