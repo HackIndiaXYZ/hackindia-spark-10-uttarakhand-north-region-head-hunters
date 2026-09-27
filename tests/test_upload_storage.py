@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -70,6 +71,41 @@ def test_upload_retains_file_and_preserves_response(tmp_path, monkeypatch):
         "finding_ids": [7],
     }
     assert retained_path.read_bytes() == content
+    assert upload.closed
+
+
+def test_xml_upload_uses_windows_event_adapter_and_retains_xml(tmp_path, monkeypatch):
+    storage_dir = tmp_path / "evidence"
+    monkeypatch.setattr(evidence_storage, "EVIDENCE_STORAGE_DIR", storage_dir)
+    evidence = SimpleNamespace(id=101)
+    content = b"<Events />"
+    upload = FakeUpload(content, filename="security-events.xml")
+    adapter_calls = []
+    monkeypatch.setattr(main, "SessionLocal", lambda: FakeSession())
+
+    def ingest_xml(path, case_id):
+        adapter_calls.append((Path(path).suffix, case_id))
+        return evidence, []
+
+    monkeypatch.setattr(main, "ingest_windows_event_xml", ingest_xml)
+    monkeypatch.setattr(main, "persist_ingestion", lambda item, events: item)
+    monkeypatch.setattr(
+        main,
+        "run_investigation_pipeline",
+        lambda case_id: {
+            "event_count": 1,
+            "findings": [],
+            "isolation_forest_results": [],
+            "lof_results": [],
+            "persisted_finding_ids": [],
+        },
+    )
+
+    response = _run_ingest(upload)
+
+    assert adapter_calls == [(".xml", 1)]
+    assert response["filename"] == "security-events.xml"
+    assert (storage_dir / "101.xml").read_bytes() == content
     assert upload.closed
 
 

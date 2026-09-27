@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Events xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <Event>
+    <System>
+      <Provider Name="Microsoft-Windows-Security-Auditing" Guid="{00000000-0000-0000-0000-000000000000}" />
+      <EventID Qualifiers="0">4624</EventID>
+      <TimeCreated SystemTime="2026-09-27T10:15:30.1234567Z" />
+      <Computer>WORKSTATION-01</Computer>
+      <Security UserID="S-1-5-18" />
+      <Execution ProcessID="812" ThreadID="44" />
+      <Channel>Security</Channel>
+    </System>
+    <EventData>
+      <Data Name="TargetUserName">alice</Data>
+      <Data Name="TargetDomainName">EXAMPLE</Data>
+      <Data Name="IpAddress">192.0.2.10</Data>
+    </EventData>
+  </Event>
+  <Event>
+    <System>
+      <Provider Name="Microsoft-Windows-System" />
+      <EventID>6005</EventID>
+      <TimeCreated SystemTime="2026-09-27T10:16:00Z" />
+      <Computer>WORKSTATION-01</Computer>
+    </System>
+  </Event>
+</Events>

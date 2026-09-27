@@ -1,5 +1,6 @@
 import os
 import tempfile
+from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +23,7 @@ from backend.app.reporting import (
     generate_json_report,
     generate_pdf_report,
 )
+from backend.app.windows_event_ingestion import ingest_windows_event_xml
 
 app = FastAPI(title="CHITRAGUPT API")
 
@@ -270,7 +272,7 @@ def case_pdf_report(case_id: int):
 
 @app.post("/cases/{case_id}/ingest")
 async def ingest_case(case_id: int, file: UploadFile = File(...)):
-    """Ingest an uploaded CSV and run the investigation pipeline for a case."""
+    """Ingest an uploaded CSV or Windows Event XML file and run the pipeline."""
     case_session = SessionLocal()
     try:
         if case_session.get(Case, case_id) is None:
@@ -283,13 +285,22 @@ async def ingest_case(case_id: int, file: UploadFile = File(...)):
 
     temporary_path = None
     try:
-        with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as temporary_file:
+        filename = file.filename or "evidence.csv"
+        suffix = Path(filename).suffix.lower() or ".csv"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary_file:
             temporary_path = temporary_file.name
             while chunk := await file.read(1024 * 1024):
                 temporary_file.write(chunk)
 
         try:
-            evidence, events = ingest_csv(temporary_path, case_id)
+            if suffix == ".csv":
+                evidence, events = ingest_csv(temporary_path, case_id)
+            elif suffix == ".xml":
+                evidence, events = ingest_windows_event_xml(temporary_path, case_id)
+            else:
+                raise ValueError(
+                    "Unsupported evidence format. Use CSV or Windows Event XML."
+                )
         except (OSError, ValueError) as exc:
             raise HTTPException(
                 status_code=400,

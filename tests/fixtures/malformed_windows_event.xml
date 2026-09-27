@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<Events xmlns="http://schemas.microsoft.com/win/2004/08/events/event">
+  <Event>
+    <System><EventID>4624</EventID></System>
+  </Event>
+  <Event>
+    <EventData><Data Name="TargetUserName">bob</Data></EventData>
+  </Event>
+</Events>
