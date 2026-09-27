@@ -239,6 +239,21 @@ function App() {
     return matchesModel && matchesStatus
   })
 
+  const handleSelectSupportingEvent = (eventId) => {
+    setSelectedSupportingEventId(eventId)
+    const isFilteredOut = !filteredEvents.some((event) => event.id === eventId)
+    if (isFilteredOut) {
+      setEventSearch('')
+      setSelectedEventType('all')
+    }
+    setTimeout(() => {
+      const targetRow = document.getElementById(`timeline-event-${eventId}`)
+      if (targetRow) {
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, isFilteredOut ? 60 : 0)
+  }
+
   if (caseListLoading) {
     return (
       <div className="app-state">
@@ -436,7 +451,7 @@ function App() {
           <section id="timeline" className="panel" aria-labelledby="timeline-heading">
             <div className="section-heading"><div><span className="eyebrow accent-text">03 / EVENT RECONSTRUCTION</span><h2 id="timeline-heading">Event Timeline</h2></div><span className="section-code">{filteredEvents.length} / {events.length} VISIBLE</span></div>
             <div className="filter-bar"><label className="search-field"><span>⌕</span><input type="text" placeholder="Search events, users, devices..." value={eventSearch} onChange={(event) => setEventSearch(event.target.value)} /></label><select value={selectedEventType} onChange={(event) => setSelectedEventType(event.target.value)}><option value="all">All event types</option>{eventTypes.map((eventType) => <option key={eventType} value={eventType}>{eventType}</option>)}</select></div>
-            <div className="table-wrap timeline-table"><table><thead><tr><th>Timestamp</th><th>Event</th><th>Actor / Device</th><th>Network</th><th>Process</th><th>File path</th><th>Description</th></tr></thead><tbody>{filteredEvents.length ? filteredEvents.map((event) => <tr className={event.id === selectedSupportingEventId ? 'selected-row' : ''} key={event.id}><td className="time-cell">{formatDate(event.timestamp)}</td><td><span className="event-code">{event.event_type}</span></td><td><strong>{event.user}</strong><small>{event.device}</small></td><td>{event.ip_address}</td><td>{event.process}</td><td className="path-cell">{event.file_path || '—'}</td><td>{event.description}</td></tr>) : <tr><td className="empty-cell" colSpan="7">No events match the current filters.</td></tr>}</tbody></table></div>
+            <div className="table-wrap timeline-table"><table><thead><tr><th>Timestamp</th><th>Event</th><th>Actor / Device</th><th>Network</th><th>Process</th><th>File path</th><th>Description</th></tr></thead><tbody>{filteredEvents.length ? filteredEvents.map((event) => <tr id={`timeline-event-${event.id}`} className={event.id === selectedSupportingEventId ? 'selected-row' : ''} key={event.id}><td className="time-cell">{formatDate(event.timestamp)}</td><td><span className="event-code">{event.event_type}</span></td><td><strong>{event.user}</strong><small>{event.device}</small></td><td>{event.ip_address}</td><td>{event.process}</td><td className="path-cell">{event.file_path || '—'}</td><td>{event.description}</td></tr>) : <tr><td className="empty-cell" colSpan="7">No events match the current filters.</td></tr>}</tbody></table></div>
           </section>
 
           <div className="split-grid">
@@ -451,6 +466,10 @@ function App() {
                   ? Object.entries(finding.signals)
                   : []
                 const isExpanded = expandedFindingId === finding.id
+                const resolvedEvents = supportingEventIds.map((eventId) => ({
+                  id: eventId,
+                  event: events.find((event) => event.id === eventId) ?? null,
+                }))
 
                 return (
                   <article className="finding-item" key={finding.id}>
@@ -473,7 +492,13 @@ function App() {
                       <div className="event-links">
                         {supportingEventIds.length
                           ? supportingEventIds.map((eventId) => (
-                              <button className="event-link" type="button" key={eventId} onClick={() => setSelectedSupportingEventId(eventId)}>
+                              <button
+                                className="event-link"
+                                type="button"
+                                key={eventId}
+                                onClick={() => handleSelectSupportingEvent(eventId)}
+                                title="Click to view in timeline"
+                              >
                                 #{eventId}
                               </button>
                             ))
@@ -490,6 +515,74 @@ function App() {
                           <div><dt>Status</dt><dd>{finding.status || '—'}</dd></div>
                           <div><dt>Supporting event IDs</dt><dd>{supportingEventIds.length ? supportingEventIds.join(', ') : 'No supporting events'}</dd></div>
                         </dl>
+                        <div className="finding-evidence-section">
+                          <div className="finding-evidence-header">
+                            <span className="eyebrow accent-text">SUPPORTING FORENSIC EVIDENCE</span>
+                            <small>{supportingEventIds.length} linked event{supportingEventIds.length === 1 ? '' : 's'}</small>
+                          </div>
+                          {supportingEventIds.length > 0 ? (
+                            <div className="table-wrap evidence-subtable-wrap">
+                              <table className="evidence-subtable">
+                                <thead>
+                                  <tr>
+                                    <th>Event ID</th>
+                                    <th>Timestamp</th>
+                                    <th>Event Type</th>
+                                    <th>Actor / Device</th>
+                                    <th>File / Process</th>
+                                    <th>Description</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {resolvedEvents.map(({ id, event: item }) => {
+                                    if (!item) {
+                                      return (
+                                        <tr key={id} className="unresolved-event-row">
+                                          <td className="strong-cell">#{id}</td>
+                                          <td colSpan="5" className="unresolved-cell">
+                                            Event #{id} could not be resolved from loaded case logs.
+                                          </td>
+                                        </tr>
+                                      )
+                                    }
+                                    const isSelected = item.id === selectedSupportingEventId
+                                    const actorDevice = [item.user, item.device].filter(Boolean).join(' · ') || '—'
+                                    const fileProcess = [item.file_path, item.process].filter(Boolean).join(' | ') || '—'
+
+                                    return (
+                                      <tr
+                                        key={item.id}
+                                        className={`evidence-subtable-row ${isSelected ? 'selected-row' : ''}`}
+                                        onClick={() => handleSelectSupportingEvent(item.id)}
+                                        title="Click to locate event in timeline"
+                                      >
+                                        <td>
+                                          <button
+                                            className="event-link"
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleSelectSupportingEvent(item.id)
+                                            }}
+                                          >
+                                            #{item.id}
+                                          </button>
+                                        </td>
+                                        <td className="time-cell">{formatDate(item.timestamp)}</td>
+                                        <td><span className="event-code">{item.event_type || '—'}</span></td>
+                                        <td>{actorDevice}</td>
+                                        <td className="path-cell" title={fileProcess}>{fileProcess}</td>
+                                        <td title={item.description || ''}>{item.description || '—'}</td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : (
+                            <div className="empty-substate">No supporting events recorded for this finding.</div>
+                          )}
+                        </div>
                         {signalEntries.length > 0 && (
                           <div className="finding-signals">
                             <span className="eyebrow accent-text">INVESTIGATION SIGNALS</span>
