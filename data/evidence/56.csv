@@ -1,0 +1,11 @@
+timestamp,event_type,source,user,device,ip_address,application,process,file_path,description
+2026-09-27T09:14:22Z,failed_login,VPN,arjun.sharma,WS-FIN-014,192.0.2.10,VPN Gateway,vpn-client.exe,,Failed VPN login for user arjun.sharma.
+2026-09-27T09:15:03Z,failed_login,VPN,arjun.sharma,WS-FIN-014,192.0.2.10,VPN Gateway,vpn-client.exe,,Second failed VPN login from the same source IP.
+2026-09-27T09:16:41Z,successful_login,VPN,arjun.sharma,WS-FIN-014,192.0.2.10,VPN Gateway,vpn-client.exe,,Successful VPN login after multiple authentication failures.
+2026-09-27T09:19:08Z,privilege_change,Windows Security,svc-backup,SRV-FILE-01,198.51.100.77,Local Security Authority,powershell.exe,,Account svc-backup was granted elevated backup-admin privileges.
+2026-09-27T09:22:50Z,outbound_connection,Firewall,svc-backup,SRV-FILE-01,10.0.0.15,Outbound Network,backup-agent.exe,,Backup service opened an outbound TLS connection to 203.0.113.40:443.
+2026-09-27T09:24:11Z,file_access,File Audit,svc-backup,SRV-FILE-01,10.0.0.15,File Server,backup-agent.exe,/finance/archive/,Unusually large number of files read from the finance archive.
+2026-09-27T09:27:33Z,web_attack_suspected,WAF,unknown,WEB-EDGE-01,203.0.113.9,Web Application Firewall,nginx.exe,/login,Repeated requests contained suspicious SQL-like input; request rejected by WAF.
+2026-09-27T09:31:02Z,file_access,File Audit,neha.verma,WS-HR-022,10.0.0.42,HR Portal,msedge.exe,/hr/policies/leave-policy.pdf,User accessed a standard HR policy document.
+2026-09-27T09:35:19Z,file_access,File Audit,neha.verma,WS-HR-022,10.0.0.42,HR Portal,msedge.exe,/hr/policies/leave-policy.pdf,Repeated access to the same HR policy document.
+2026-09-27T09:41:47Z,process_execution,Windows Event Log,rahul.kapoor,WS-ENG-006,10.0.0.31,Windows PowerShell,powershell.exe,,PowerShell launched with an encoded command-line argument.
