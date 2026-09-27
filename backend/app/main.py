@@ -9,7 +9,8 @@ from sqlalchemy import select
 from backend.app.database import SessionLocal
 from backend.app.ingestion import ingest_csv
 from backend.app.models import Anomaly, Case, Evidence, Finding
-from backend.app.persistence import persist_ingestion
+from backend.app.evidence_storage import remove_retained_evidence, retain_evidence_file
+from backend.app.persistence import delete_persisted_ingestion, persist_ingestion
 from backend.app.pipeline import run_investigation_pipeline
 from backend.app.queries import get_events_by_case
 from backend.app.reporting import (
@@ -280,10 +281,23 @@ async def ingest_case(case_id: int, file: UploadFile = File(...)):
                 detail=f"Invalid or unreadable CSV: {exc}",
             ) from exc
 
+        persisted_evidence = None
+        retained_path = None
         try:
             persisted_evidence = persist_ingestion(evidence, events)
+            retained_path = retain_evidence_file(
+                temporary_path,
+                persisted_evidence.id,
+                file.filename,
+            )
             pipeline_result = run_investigation_pipeline(case_id)
         except Exception as exc:
+            remove_retained_evidence(retained_path)
+            if persisted_evidence is not None:
+                try:
+                    delete_persisted_ingestion(persisted_evidence.id)
+                except Exception:
+                    pass
             raise HTTPException(
                 status_code=500,
                 detail="CSV processing failed.",
