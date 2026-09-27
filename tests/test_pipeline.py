@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from backend.app.anomaly_persistence import persist_anomalies
 from backend.app.database import SessionLocal
@@ -48,6 +48,23 @@ def test_run_investigation_pipeline_processes_sample_data():
         assert all(anomaly_id is not None for anomaly_id in result["persisted_anomaly_ids"])
         assert result["persisted_finding_ids"]
         assert all(finding_id is not None for finding_id in result["persisted_finding_ids"])
+
+        finding_types = {finding["finding_type"] for finding in result["findings"]}
+        assert "possible_file_transfer" in finding_types
+        assert "possible_ransomware_activity" in finding_types
+        assert all(finding["supporting_event_ids"] for finding in result["findings"])
+
+        verify_session = SessionLocal()
+        try:
+            persisted_findings = verify_session.scalars(
+                select(Finding).where(Finding.case_id == case_id)
+            ).all()
+            persisted_types = {finding.finding_type for finding in persisted_findings}
+            assert "possible_file_transfer" in persisted_types
+            assert "possible_ransomware_activity" in persisted_types
+            assert all(finding.supporting_event_ids for finding in persisted_findings)
+        finally:
+            verify_session.close()
     finally:
         cleanup_session = SessionLocal()
         try:

@@ -7,7 +7,10 @@ from backend.app.finding_persistence import persist_findings
 from backend.app.inference import infer_findings
 from backend.app.lof import run_lof
 from backend.app.queries import get_events_by_case
-from backend.app.rules import evaluate_file_transfer_rule
+from backend.app.rules import (
+    evaluate_file_transfer_rule,
+    evaluate_ransomware_rule,
+)
 
 
 def run_investigation_pipeline(case_id: int) -> dict:
@@ -16,7 +19,10 @@ def run_investigation_pipeline(case_id: int) -> dict:
     if not events:
         raise ValueError(f"No events found for case ID {case_id}.")
 
-    rule_results = [evaluate_file_transfer_rule(event) for event in events]
+    rule_results = []
+    for event in events:
+        rule_results.append(evaluate_file_transfer_rule(event))
+        rule_results.append(evaluate_ransomware_rule(event))
     correlations = correlate_events(events)
     isolation_forest_results = run_isolation_forest(events)
     lof_results = run_lof(events)
